@@ -1,1 +1,350 @@
-/* piegeage */
+/* Styles de l'ancienne appli « piegeage », limités au conteneur .tool-piegeage (généré). */
+.tool-piegeage{
+  --brand:#d31145;--brand-dark:#aa0d38;--brand-light:#fde8ef;--ink:#202832;--muted:#66717c;--line:#dde3e8;--surface:#fff;--background:#f5f6f8;--success:#2d7c59;--warning:#8c5a11;--radius:16px;--shadow:0 12px 28px rgba(32,40,50,.08)
+}
+.tool-piegeage *{box-sizing:border-box}.tool-piegeage{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);line-height:1.5}.tool-piegeage button,.tool-piegeage input,.tool-piegeage select,.tool-piegeage textarea{font:inherit}.tool-piegeage button{cursor:pointer}.tool-piegeage .hidden{display:none!important}.tool-piegeage .mobile-only{display:none}.tool-piegeage .app-brand-logo{border-radius:10px}.tool-piegeage .panel{padding:20px;margin-bottom:18px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow)}.tool-piegeage .hero{display:flex;justify-content:space-between;gap:24px;align-items:flex-start}.tool-piegeage .hero h2{margin:6px 0 10px;font-size:clamp(1.75rem,3vw,2.65rem);line-height:1.08;letter-spacing:-.03em}.tool-piegeage .hero-text{max-width:820px;margin:0;color:var(--muted)}.tool-piegeage .eyebrow,.tool-piegeage .panel-kicker{margin:0;color:var(--brand);font-weight:800;text-transform:uppercase;letter-spacing:.1em;font-size:.74rem}.tool-piegeage .panel-header{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:14px}.tool-piegeage .panel h3{margin:4px 0 0;font-size:1.13rem}.tool-piegeage .admin-actions{display:grid;grid-template-columns:repeat(2,minmax(120px,1fr));gap:8px;width:min(390px,100%)}
+.tool-piegeage .primary-button,.tool-piegeage .secondary-button{min-height:42px;padding:0 14px;border-radius:9px;font-weight:800}.tool-piegeage .primary-button{border:1px solid var(--brand);background:var(--brand);color:#fff}.tool-piegeage .primary-button:hover{background:var(--brand-dark)}.tool-piegeage .secondary-button{border:1px solid #ccd5db;background:#fff;color:var(--ink)}.tool-piegeage .secondary-button:hover{border-color:var(--brand);color:var(--brand)}
+.tool-piegeage .global-message,.tool-piegeage .sync-status{margin-bottom:12px;padding:10px 12px;border-radius:10px;font-size:.84rem;font-weight:700}.tool-piegeage .global-message:empty{display:none}.tool-piegeage .global-message.error{color:#8d263c;background:#fdecef;border:1px solid #efc4ce}.tool-piegeage .sync-status.offline{color:#7a571b;background:#fff3d8;border:1px solid #efd59c}.tool-piegeage .sync-status.syncing{color:#315f74;background:#e9f4f8;border:1px solid #c8e0ea}.tool-piegeage .sync-status.success{color:#1f6f4f;background:#e8f5ee;border:1px solid #c9e7d7}
+.tool-piegeage .filter-panel{padding:16px}.tool-piegeage .filter-grid{display:flex;flex-wrap:wrap;gap:10px;align-items:end}.tool-piegeage .filter-grid>label,.tool-piegeage .filter-grid>.ms-field{flex:1 1 130px;min-width:110px}.tool-piegeage .filter-grid>.export-actions{flex:1 1 240px}.tool-piegeage .filter-grid label,.tool-piegeage .dialog-form label{display:grid;gap:6px;color:var(--muted);font-size:.8rem;font-weight:750}.tool-piegeage .field-label{color:var(--muted);font-size:.8rem;font-weight:750}.tool-piegeage .filter-grid select,.tool-piegeage input,.tool-piegeage select,.tool-piegeage textarea{width:100%;min-height:42px;padding:9px 11px;border:1px solid #ccd5db;border-radius:9px;color:var(--ink);background:#fff}.tool-piegeage .filter-grid select:focus,.tool-piegeage input:focus,.tool-piegeage select:focus,.tool-piegeage textarea:focus{outline:3px solid rgba(211,17,69,.12);border-color:var(--brand)}.tool-piegeage .export-button{min-width:135px}
+.tool-piegeage .metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:18px 0}.tool-piegeage .metric-card{padding:17px;border:1px solid var(--line);border-radius:14px;background:#fff;box-shadow:var(--shadow)}.tool-piegeage .metric-card p{margin:0 0 6px;color:var(--muted);font-size:.78rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em}.tool-piegeage .metric-card strong{display:block;font-size:1.45rem}.tool-piegeage .metric-card span{display:block;margin-top:4px;color:var(--muted);font-size:.78rem}
+.tool-piegeage .campaign-summary{color:var(--muted);font-size:.82rem;text-align:right}.tool-piegeage .chart-wrap{position:relative;min-height:430px}.tool-piegeage .empty-state{padding:14px 16px;margin-bottom:12px;border:1px dashed #ccd5db;border-radius:13px;color:var(--muted);background:#fafbfc;text-align:center}.tool-piegeage .event-legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.tool-piegeage .event-chip{padding:5px 8px;border-radius:999px;background:#fff0d4;color:#8c5a11;font-size:.72rem;font-weight:750}
+.tool-piegeage .history-list{display:grid;gap:10px}.tool-piegeage .history-card{display:grid;grid-template-columns:1fr auto;gap:14px;padding:14px;border:1px solid var(--line);border-radius:13px;background:#fbfcfd}.tool-piegeage .history-card.pending{border-color:#efd59c;background:#fffaf0}.tool-piegeage .history-main strong{display:block}.tool-piegeage .history-meta{margin-top:3px;color:var(--muted);font-size:.82rem}.tool-piegeage .history-details{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}.tool-piegeage .detail-pill{padding:4px 7px;border-radius:999px;background:#f2f4f6;font-size:.74rem}.tool-piegeage .history-actions{display:flex;flex-direction:column;gap:7px;min-width:110px}.tool-piegeage .small-button{min-height:34px;padding:5px 9px;border-radius:8px;border:1px solid #ccd5db;background:#fff;font-size:.76rem;font-weight:800}.tool-piegeage .small-button.danger{color:#9d1639;border-color:#e1a8b7;background:#fff5f7}.tool-piegeage .small-button.restore{color:#1f6f4f;border-color:#bcdac9;background:#eef8f2}.tool-piegeage .history-empty{padding:20px;text-align:center;color:var(--muted)}
+.tool-piegeage .app-dialog{width:min(620px,calc(100% - 28px));max-height:88vh;padding:0;border:0;border-radius:18px;box-shadow:0 24px 80px rgba(31,41,51,.28);overflow:auto}.tool-piegeage .wide-dialog{width:min(880px,calc(100% - 28px))}.tool-piegeage .app-dialog::backdrop{background:rgba(18,24,30,.52)}.tool-piegeage .dialog-header{position:sticky;top:0;z-index:4;display:flex;justify-content:space-between;gap:12px;align-items:center;padding:16px 20px;border-bottom:1px solid var(--line);background:#fff}.tool-piegeage .dialog-header h2{margin:3px 0 0;font-size:1.28rem}.tool-piegeage .close-button{width:38px;height:38px;border:1px solid var(--line);border-radius:9px;background:#fff;font-size:1.35rem}.tool-piegeage .dialog-form{display:grid;gap:12px;padding:18px 20px}.tool-piegeage .dialog-form.two-cols{grid-template-columns:repeat(2,minmax(0,1fr))}.tool-piegeage .full-span{grid-column:1/-1}.tool-piegeage .dialog-form textarea{resize:vertical}.tool-piegeage .form-message{min-height:20px;padding:0 20px 10px;color:var(--success);font-size:.82rem;font-weight:750}.tool-piegeage .form-message.error{color:#9d1639}.tool-piegeage .management-section{padding:14px 20px 22px;border-top:1px solid var(--line)}.tool-piegeage .management-section h3{margin:0 0 10px;font-size:1rem}.tool-piegeage .management-list{display:grid;gap:8px}.tool-piegeage .management-item{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:10px 11px;border:1px solid var(--line);border-radius:11px;background:#fbfcfd}.tool-piegeage .management-item.archived{opacity:.7;background:#f3f4f5}.tool-piegeage .management-info strong,.tool-piegeage .management-info span{display:block}.tool-piegeage .management-info span{margin-top:2px;color:var(--muted);font-size:.76rem}.tool-piegeage .management-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.tool-piegeage .checkbox-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:5px}.tool-piegeage .checkbox-card{display:flex!important;grid-template-columns:none!important;align-items:center;gap:8px!important;padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink)!important;font-weight:600!important}.tool-piegeage .checkbox-card input{width:auto;min-height:auto}.tool-piegeage .species-choice-section{padding:11px;border:1px solid var(--line);border-radius:11px;background:#fafbfc}
+.tool-piegeage .ms-field{display:grid;gap:6px;position:relative;min-width:0;color:var(--muted);font-size:.8rem;font-weight:750}.tool-piegeage .ms-dropdown{position:relative;min-width:0}.tool-piegeage .ms-toggle{display:flex;align-items:center;justify-content:space-between;gap:6px;width:100%;min-width:0;min-height:42px;padding:9px 11px;border:1px solid #ccd5db;border-radius:9px;background:#fff;color:var(--ink);font-family:inherit;font-size:.8rem;font-weight:750;text-align:left}.tool-piegeage .ms-toggle:focus{outline:3px solid rgba(211,17,69,.12);border-color:var(--brand)}.tool-piegeage .ms-toggle:disabled{opacity:.5;cursor:not-allowed;background:#f3f4f6}.tool-piegeage .ms-toggle-text{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tool-piegeage .ms-toggle-caret{flex:none;color:var(--muted);font-size:.72rem}.tool-piegeage .ms-panel{position:absolute;top:calc(100% + 6px);left:0;z-index:35;width:max(100%,230px);max-height:280px;overflow:auto;padding:10px;border:1px solid var(--line);border-radius:12px;background:#fff;box-shadow:var(--shadow)}.tool-piegeage .ms-panel.hidden{display:none}.tool-piegeage .ms-panel-actions{display:flex;gap:12px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--line)}.tool-piegeage .ms-mini-link{min-height:auto;padding:0;border:0;background:none;color:var(--brand);font-size:.76rem;font-weight:800}.tool-piegeage .ms-mini-link:hover{text-decoration:underline}.tool-piegeage .ms-options{display:grid;gap:6px}.tool-piegeage .ms-option{padding:7px 9px!important;font-size:.85rem!important}.tool-piegeage .ms-empty{margin:0;color:var(--muted);font-size:.82rem}
+.tool-piegeage .identification-header{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:10px}.tool-piegeage .identification-header p{margin:4px 0 0;color:var(--muted);font-size:.82rem}.tool-piegeage .identification-summary{padding:7px 9px;border-radius:9px;background:var(--brand-light);color:#7d1d38;font-size:.78rem;font-weight:800;white-space:nowrap}.tool-piegeage .species-detail-list{display:grid;gap:8px}.tool-piegeage .species-detail-row{display:grid;grid-template-columns:minmax(160px,1.7fr) repeat(3,minmax(80px,.7fr));gap:8px;align-items:end;padding:10px;border:1px solid var(--line);border-radius:11px;background:#fbfcfd}.tool-piegeage .species-name strong,.tool-piegeage .species-name span{display:block}.tool-piegeage .species-name span{color:var(--muted);font-size:.74rem}.tool-piegeage .species-detail-row label{font-size:.72rem}.tool-piegeage .species-detail-row input{min-height:38px;padding:7px 8px}
+@media(max-width:1050px){.tool-piegeage .filter-grid{grid-template-columns:repeat(4,minmax(130px,1fr))}.tool-piegeage .export-button{grid-column:span 2}.tool-piegeage .hero{display:grid}.tool-piegeage .admin-actions{width:100%;grid-template-columns:repeat(2,1fr)}}
+@media(max-width:720px){.tool-piegeage .mobile-only{display:block}.tool-piegeage .mobile-only.hidden{display:none!important}.tool-piegeage .panel{padding:14px;margin-bottom:12px;border-radius:14px}.tool-piegeage .hero h2{font-size:1.55rem}.tool-piegeage .hero-text{font-size:.9rem}.tool-piegeage .admin-actions{grid-template-columns:repeat(2,1fr);gap:7px}.tool-piegeage .admin-actions button{min-height:46px;padding:0 8px}.tool-piegeage .filter-grid{grid-template-columns:1fr 1fr;gap:9px}.tool-piegeage .filter-grid select{min-height:46px;font-size:16px}.tool-piegeage .export-button{grid-column:1/-1;min-height:46px}.tool-piegeage .metric-grid{grid-template-columns:1fr 1fr;gap:9px;margin:12px 0}.tool-piegeage .metric-card{padding:13px}.tool-piegeage .metric-card strong{font-size:1.15rem}.tool-piegeage .chart-wrap{min-height:310px}.tool-piegeage .panel-header{align-items:center}.tool-piegeage .campaign-summary{display:none}.tool-piegeage .history-card{grid-template-columns:1fr}.tool-piegeage .history-actions{display:grid;grid-template-columns:1fr 1fr}.tool-piegeage .app-dialog{width:100%;max-width:none;max-height:92dvh;margin:auto 0 0;border-radius:18px 18px 0 0}.tool-piegeage .dialog-header{padding:14px}.tool-piegeage .dialog-form,.tool-piegeage .dialog-form.two-cols{grid-template-columns:1fr;padding:14px}.tool-piegeage .full-span{grid-column:auto}.tool-piegeage .form-message{padding:0 14px 10px}.tool-piegeage .management-section{padding:12px 14px 18px}.tool-piegeage .management-item{grid-template-columns:1fr}.tool-piegeage .management-actions{justify-content:stretch}.tool-piegeage .management-actions button{flex:1}.tool-piegeage .checkbox-grid{grid-template-columns:1fr}.tool-piegeage .identification-header{display:grid}.tool-piegeage .identification-summary{white-space:normal}.tool-piegeage .species-detail-row{grid-template-columns:1fr 1fr 1fr}.tool-piegeage .species-name{grid-column:1/-1}.tool-piegeage .species-detail-row input{font-size:16px}.tool-piegeage .close-button{min-width:44px;min-height:44px}.tool-piegeage .ms-toggle{min-height:46px;font-size:16px}.tool-piegeage .ms-panel{position:fixed;left:12px;right:12px;top:auto;width:auto;max-height:60vh}}
+@media(max-width:390px){.tool-piegeage .admin-actions,.tool-piegeage .filter-grid,.tool-piegeage .metric-grid{grid-template-columns:1fr}.tool-piegeage .export-button{grid-column:auto}.tool-piegeage .history-actions{grid-template-columns:1fr}.tool-piegeage .species-detail-row{grid-template-columns:1fr}.tool-piegeage .species-name{grid-column:auto}}
+
+
+/* =========================================================
+   Confirmation intégrée à SAM
+   Remplace les confirm() du navigateur
+   ========================================================= */
+.tool-piegeage .confirm-dialog {
+  width: min(520px, calc(100% - 28px));
+  overflow: hidden;
+}
+
+.tool-piegeage .confirm-dialog-content {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  padding: 22px 22px 16px;
+}
+
+.tool-piegeage .confirm-dialog-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  color: #9d1639;
+  background: #fff0f4;
+  border: 1px solid #efbcc9;
+  font-size: 1.45rem;
+  font-weight: 900;
+}
+
+.tool-piegeage .confirm-dialog h2 {
+  margin: 4px 0 7px;
+  font-size: 1.2rem;
+}
+
+.tool-piegeage .confirm-dialog-message {
+  margin: 0;
+  color: var(--muted);
+  white-space: pre-line;
+}
+
+.tool-piegeage .confirm-dialog-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 14px 22px 22px;
+  border-top: 1px solid var(--line);
+}
+
+.tool-piegeage .danger-confirm-button {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid #b31440;
+  border-radius: 9px;
+  color: #fff;
+  background: #b31440;
+  font-weight: 800;
+}
+
+.tool-piegeage .danger-confirm-button:hover {
+  background: #941033;
+  border-color: #941033;
+}
+
+.tool-piegeage .confirm-dialog.archive-mode .confirm-dialog-icon {
+  color: #8c5a11;
+  background: #fff6e8;
+  border-color: #f0d3aa;
+}
+
+.tool-piegeage .confirm-dialog.archive-mode .danger-confirm-button {
+  color: #fff;
+  background: var(--brand);
+  border-color: var(--brand);
+}
+
+@media (max-width: 720px) {
+  .tool-piegeage .confirm-dialog {
+    width: calc(100% - 20px);
+    max-width: none;
+    margin: auto 10px;
+    border-radius: 16px;
+  }
+
+  .tool-piegeage .confirm-dialog-content {
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 11px;
+    padding: 18px 16px 14px;
+  }
+
+  .tool-piegeage .confirm-dialog-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .tool-piegeage .confirm-dialog-actions {
+    padding: 12px 16px 16px;
+  }
+
+  .tool-piegeage .confirm-dialog-actions button {
+    min-height: 48px;
+  }
+}
+
+
+/* =========================================================
+   Import Excel + export SVG
+   ========================================================= */
+.tool-piegeage .export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.tool-piegeage .export-actions .export-button {
+  min-width: 118px;
+  white-space: nowrap;
+}
+
+.tool-piegeage .excel-import-card {
+  padding: 14px;
+  border: 1px solid #efd1da;
+  border-radius: 13px;
+  background: linear-gradient(180deg, #fff 0%, #fff8fa 100%);
+}
+
+.tool-piegeage .excel-import-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+}
+
+.tool-piegeage .excel-import-header h3 {
+  margin: 4px 0 5px;
+  font-size: 1.02rem;
+}
+
+.tool-piegeage .excel-import-header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: .84rem;
+}
+
+.tool-piegeage .excel-file-button {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 13px;
+  border: 1px solid var(--brand);
+  border-radius: 9px;
+  color: var(--brand);
+  background: #fff;
+  font-weight: 800 !important;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tool-piegeage .excel-file-button:hover {
+  color: #fff;
+  background: var(--brand);
+}
+
+.tool-piegeage .excel-file-button input {
+  display: none;
+}
+
+.tool-piegeage .excel-format-example {
+  display: grid;
+  gap: 3px;
+  margin-top: 11px;
+  padding: 10px 11px;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fff;
+  color: #47515b;
+  font-size: .77rem;
+}
+
+.tool-piegeage .excel-format-example code {
+  white-space: nowrap;
+}
+
+.tool-piegeage .excel-import-help {
+  margin: 9px 0 0;
+  color: var(--muted);
+  font-size: .78rem;
+}
+
+.tool-piegeage .excel-import-preview {
+  margin-top: 12px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.tool-piegeage .excel-import-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 8px;
+}
+
+.tool-piegeage .excel-import-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 27px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #eef2f4;
+  color: #46515a;
+  font-size: .74rem;
+  font-weight: 800;
+}
+
+.tool-piegeage .excel-import-badge.good {
+  color: #1f6f4f;
+  background: #e8f5ee;
+}
+
+.tool-piegeage .excel-import-badge.warning {
+  color: #8c5a11;
+  background: #fff3d8;
+}
+
+.tool-piegeage .excel-import-badge.error {
+  color: #9d1639;
+  background: #fff0f4;
+}
+
+.tool-piegeage .excel-import-errors,
+.tool-piegeage .excel-import-warnings {
+  margin: 7px 0 0;
+  padding-left: 19px;
+  font-size: .78rem;
+}
+
+.tool-piegeage .excel-import-errors {
+  color: #9d1639;
+}
+
+.tool-piegeage .excel-import-warnings {
+  color: #8c5a11;
+}
+
+.tool-piegeage .excel-import-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 11px;
+}
+
+@media (max-width: 1050px) {
+  .tool-piegeage .export-actions {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 720px) {
+  .tool-piegeage .export-actions {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .tool-piegeage .export-actions .export-button {
+    width: 100%;
+    min-width: 0;
+    min-height: 46px;
+  }
+
+  .tool-piegeage .excel-import-header {
+    grid-template-columns: 1fr;
+  }
+
+  .tool-piegeage .excel-file-button {
+    width: 100%;
+    min-height: 46px;
+  }
+
+  .tool-piegeage .excel-import-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .tool-piegeage .excel-import-actions button {
+    width: 100%;
+    min-height: 46px;
+  }
+}
+
+@media (max-width: 390px) {
+  .tool-piegeage .export-actions {
+    grid-column: auto;
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================
+   Onglets Suivi / Carte + carte satellite des pièges
+   ========================================================= */
+.tool-piegeage .view-tabs{display:flex;gap:6px;margin:0 0 14px;padding:4px;border:1px solid var(--line);border-radius:12px;background:#fff;width:max-content;max-width:100%}
+.tool-piegeage .view-tab{min-height:38px;padding:0 20px;border:0;border-radius:9px;background:transparent;color:var(--muted);font-weight:800}
+.tool-piegeage .view-tab:hover{color:var(--brand)}
+.tool-piegeage .view-tab.active{background:var(--brand);color:#fff}
+.tool-piegeage .trap-map{width:100%;height:min(62vh,560px);min-height:360px;border-radius:12px;border:1px solid var(--line);overflow:hidden;z-index:1}
+.tool-piegeage .map-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:12px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#fafbfc}
+.tool-piegeage .map-tools label{display:grid;gap:6px;flex:1 1 220px;min-width:0;color:var(--muted);font-size:.8rem;font-weight:750}
+.tool-piegeage .map-tools .secondary-button{flex:0 1 auto}
+.tool-piegeage .map-hint{flex:1 1 100%;margin:0;color:var(--muted);font-size:.8rem}
+.tool-piegeage .trap-pin{background:none;border:0}
+.tool-piegeage .trap-pin .pin-dot{display:block;width:18px;height:18px;border:3px solid #fff;border-radius:50%;box-shadow:0 1px 5px rgba(0,0,0,.55)}
+.tool-piegeage .trap-pin .pin-label{position:absolute;left:50%;top:20px;transform:translateX(-50%);padding:1px 6px;border-radius:6px;background:rgba(255,255,255,.92);color:var(--ink);font-size:.7rem;font-weight:800;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.tool-piegeage .trap-pin.selected .pin-dot{outline:3px solid #ffd400}
+.tool-piegeage .map-popup strong{display:block}.tool-piegeage .map-popup span{display:block;color:var(--muted);font-size:.8rem}
+@media(max-width:720px){.tool-piegeage .view-tabs{width:100%}.tool-piegeage .view-tab{flex:1}.tool-piegeage .trap-map{height:60vh}}
+.tool-piegeage .map-popup .small-button{margin-top:8px}.tool-piegeage .map-popup-hint{margin-top:6px;font-style:italic}
+
+/* Intégration dans SAM Outils */
+.tool-piegeage .panel { border-radius: 12px; box-shadow: var(--sam-shadow-sm); }
+.tool-piegeage .hero { align-items: center; }
+.tool-piegeage .hero .hero-text { font-size: .92rem; }
+.tool-piegeage .admin-actions { width: min(520px, 100%); grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+.tool-piegeage .app-dialog { z-index: 90; }

@@ -1,6 +1,2755 @@
-// Outil en cours d'intégration (version provisoire).
+// SAM Piégeage — réseaux de pièges, identifications et interventions.
+// Reprise de l'appli « SAM Piégeage » V2 : lecture libre, saisie réservée aux
+// administrateurs SAM (qui peuvent aussi modifier les saisies des autres).
+import { fetchAllRows, addDaysISO } from '../core/util.js';
+
+const TEMPLATE = `  <div class="tool-main">
+    <section class="hero panel">
+      <div>
+        <p class="eyebrow">Réseau de piégeage SudExpé</p>
+        <p class="hero-text">Lecture publique des résultats. Les campagnes, parcelles, pièges, relevés et interventions sont gérés par les comptes administrateurs SAM.</p>
+      </div>
+      <div id="adminActions" class="admin-actions hidden">
+        <button class="primary-button" id="newObservationButton" type="button">+ Relevé</button>
+        <button class="secondary-button" id="newCampaignButton" type="button">+ Campagne</button>
+        <button class="secondary-button" id="newParcelButton" type="button">+ Parcelle</button>
+        <button class="secondary-button" id="newTrapButton" type="button">+ Piège</button>
+        <button class="secondary-button" id="newInterventionButton" type="button">+ Intervention</button>
+        <button class="secondary-button" id="speciesButton" type="button">Espèces</button>
+        <button class="secondary-button" id="archivesButton" type="button">Archives</button>
+        <button class="secondary-button" id="migrationButton" type="button">Migrer l’ancienne base</button>
+      </div>
+    </section>
+
+    <div id="globalMessage" class="global-message" role="status"></div>
+    <div id="syncStatus" class="sync-status hidden" role="status"></div>
+
+    <nav class="view-tabs" role="tablist" aria-label="Affichage">
+      <button type="button" class="view-tab active" id="tabSuivi" role="tab" aria-selected="true" data-view="suivi">Suivi</button>
+      <button type="button" class="view-tab" id="tabCarte" role="tab" aria-selected="false" data-view="carte">Carte</button>
+    </nav>
+
+    <section class="panel filter-panel">
+      <div class="filter-grid">
+        <label>Campagne<select id="campaignFilter"></select></label>
+        <div class="ms-field" id="parcelFilterDropdown">
+          <span class="field-label">Parcelle</span>
+          <div class="ms-dropdown">
+            <button type="button" class="ms-toggle" id="parcelFilterToggle" aria-haspopup="listbox" aria-expanded="false">
+              <span class="ms-toggle-text" id="parcelFilterSummary">Toutes les parcelles</span>
+              <span class="ms-toggle-caret" aria-hidden="true">▾</span>
+            </button>
+            <div class="ms-panel hidden" id="parcelFilterPanel" role="listbox" aria-multiselectable="true">
+              <div class="ms-panel-actions">
+                <button type="button" class="ms-mini-link" data-ms-action="all">Tout cocher</button>
+                <button type="button" class="ms-mini-link" data-ms-action="none">Tout décocher</button>
+              </div>
+              <div class="ms-options" id="parcelFilterOptions"></div>
+            </div>
+          </div>
+        </div>
+        <div class="ms-field" id="trapFilterDropdown">
+          <span class="field-label">Piège</span>
+          <div class="ms-dropdown">
+            <button type="button" class="ms-toggle" id="trapFilterToggle" aria-haspopup="listbox" aria-expanded="false">
+              <span class="ms-toggle-text" id="trapFilterSummary">Tous les pièges</span>
+              <span class="ms-toggle-caret" aria-hidden="true">▾</span>
+            </button>
+            <div class="ms-panel hidden" id="trapFilterPanel" role="listbox" aria-multiselectable="true">
+              <div class="ms-panel-actions">
+                <button type="button" class="ms-mini-link" data-ms-action="all">Tout cocher</button>
+                <button type="button" class="ms-mini-link" data-ms-action="none">Tout décocher</button>
+              </div>
+              <div class="ms-options" id="trapFilterOptions"></div>
+            </div>
+          </div>
+        </div>
+        <div class="ms-field" id="speciesFilterDropdown">
+          <span class="field-label">Espèce</span>
+          <div class="ms-dropdown">
+            <button type="button" class="ms-toggle" id="speciesFilterToggle" aria-haspopup="listbox" aria-expanded="false">
+              <span class="ms-toggle-text" id="speciesFilterSummary">Total des captures</span>
+              <span class="ms-toggle-caret" aria-hidden="true">▾</span>
+            </button>
+            <div class="ms-panel hidden" id="speciesFilterPanel" role="listbox" aria-multiselectable="true">
+              <div class="ms-panel-actions">
+                <button type="button" class="ms-mini-link" data-ms-action="all">Tout cocher</button>
+                <button type="button" class="ms-mini-link" data-ms-action="none">Tout décocher</button>
+              </div>
+              <div class="ms-options" id="speciesFilterOptions"></div>
+            </div>
+          </div>
+        </div>
+        <div class="ms-field" id="sexFilterDropdown">
+          <span class="field-label">Sexe</span>
+          <div class="ms-dropdown">
+            <button type="button" class="ms-toggle" id="sexFilterToggle" aria-haspopup="listbox" aria-expanded="false">
+              <span class="ms-toggle-text" id="sexFilterSummary">Tous</span>
+              <span class="ms-toggle-caret" aria-hidden="true">▾</span>
+            </button>
+            <div class="ms-panel hidden" id="sexFilterPanel" role="listbox" aria-multiselectable="true">
+              <div class="ms-panel-actions">
+                <button type="button" class="ms-mini-link" data-ms-action="all">Tout cocher</button>
+                <button type="button" class="ms-mini-link" data-ms-action="none">Tout décocher</button>
+              </div>
+              <div class="ms-options" id="sexFilterOptions"></div>
+            </div>
+          </div>
+        </div>
+        <label>Unité<select id="unitFilter"><option value="raw">Captures brutes</option><option value="per_day">Captures / jour</option></select></label>
+        <label>Courbe<select id="processingFilter"><option value="observed">Valeurs observées</option><option value="weekly">Total hebdomadaire</option><option value="smoothed">Lissage</option></select></label>
+        <div class="export-actions">
+          <button id="exportExcelButton" class="secondary-button export-button" type="button">Exporter Excel</button>
+          <button id="exportSvgButton" class="secondary-button export-button" type="button">Exporter SVG</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="metric-grid view-suivi">
+      <article class="metric-card"><p>Dernier relevé</p><strong id="lastValue">—</strong><span id="lastDate">Aucune donnée</span></article>
+      <article class="metric-card"><p>Cumul</p><strong id="seasonTotal">—</strong><span id="seasonUnit">captures</span></article>
+      <article class="metric-card"><p>Identification</p><strong id="identificationValue">—</strong><span id="identificationText">—</span></article>
+      <article class="metric-card"><p>Nombre de relevés</p><strong id="recordCount">0</strong><span id="recordPeriod">—</span></article>
+    </section>
+
+    <section class="panel view-suivi">
+      <div class="panel-header">
+        <div><p class="panel-kicker">Dynamique saisonnière</p><h3 id="chartTitle">Captures</h3></div>
+        <div id="campaignSummary" class="campaign-summary"></div>
+      </div>
+      <div id="chartEmpty" class="empty-state hidden">Aucune donnée pour cette sélection.</div>
+      <div class="chart-wrap"><canvas id="trapChart" aria-label="Graphique des captures"></canvas></div>
+      <div id="eventLegend" class="event-legend"></div>
+    </section>
+
+    <section class="panel view-suivi">
+      <div class="panel-header"><div><p class="panel-kicker">Historique</p><h3>Relevés enregistrés</h3></div></div>
+      <div id="historyList" class="history-list"></div>
+    </section>
+
+    <section class="panel view-carte hidden" id="mapSection">
+      <div class="panel-header">
+        <div><p class="panel-kicker">Cartographie</p><h3>Position des pièges</h3></div>
+        <div id="mapSummary" class="campaign-summary"></div>
+      </div>
+      <div id="mapAdminTools" class="map-tools hidden">
+        <label>Piège à placer<select id="mapTrapSelect"></select></label>
+        <button type="button" class="secondary-button" id="mapGpsButton">Utiliser ma position GPS</button>
+        <p class="map-hint" id="mapHint">Choisis un piège, puis clique sur la carte pour le placer. Un marqueur déjà posé peut être glissé.</p>
+      </div>
+      <div id="mapMessage" class="form-message"></div>
+      <div id="mapEmpty" class="empty-state hidden">Aucun piège positionné pour cette sélection.</div>
+      <div id="trapMap" class="trap-map" role="application" aria-label="Carte satellite des pièges"></div>
+    </section>
+
+  <!-- CAMPAGNE -->
+  <dialog id="campaignDialog" class="app-dialog wide-dialog">
+    <div class="dialog-header"><div><p class="panel-kicker">Administration</p><h2>Campagnes</h2></div><button class="close-button" data-close="campaignDialog" type="button">×</button></div>
+    <form id="campaignForm" class="dialog-form two-cols">
+      <input id="campaignId" type="hidden">
+      <label>Nom de la campagne<input id="campaignName" type="text" placeholder="Ex. Pucerons Marsillargues 2026" required></label>
+      <label>Année<input id="campaignYear" type="number" min="2000" max="2100" required></label>
+      <label>Ravageur / groupe suivi<input id="campaignPest" type="text" placeholder="Ex. Pucerons" required></label>
+      <label>Protocole<select id="campaignProtocol"><option value="simple">Simple — nombre de captures</option><option value="aphid">Avancé — espèces + M/F/indéterminés</option></select></label>
+      <label>Date de début<input id="campaignStart" type="date"></label>
+      <label>Date de fin<input id="campaignEnd" type="date"></label>
+      <div id="campaignSpeciesSection" class="full-span species-choice-section hidden"><span class="field-label">Espèces suivies</span><div id="campaignSpeciesChoices" class="checkbox-grid"></div></div>
+      <button class="primary-button full-span" type="submit">Enregistrer la campagne</button>
+    </form>
+    <div id="campaignMessage" class="form-message"></div>
+    <div class="management-section"><h3>Campagnes existantes</h3><div id="campaignManageList" class="management-list"></div></div>
+  </dialog>
+
+  <!-- PARCELLE -->
+  <dialog id="parcelDialog" class="app-dialog wide-dialog">
+    <div class="dialog-header"><div><p class="panel-kicker">Administration</p><h2>Parcelles</h2></div><button class="close-button" data-close="parcelDialog" type="button">×</button></div>
+    <form id="parcelForm" class="dialog-form two-cols">
+      <input id="parcelId" type="hidden">
+      <label>Exploitation<input id="parcelFarm" type="text" required></label>
+      <label>Parcelle<input id="parcelName" type="text" required></label>
+      <label>Variété<input id="parcelVariety" type="text" required></label>
+      <label>Surface (ha)<input id="parcelArea" type="number" min="0" step="0.01" required></label>
+      <button class="primary-button full-span" type="submit">Enregistrer la parcelle</button>
+    </form>
+    <div id="parcelMessage" class="form-message"></div>
+    <div class="management-section"><h3>Parcelles existantes</h3><div id="parcelManageList" class="management-list"></div></div>
+  </dialog>
+
+  <!-- PIÈGE -->
+  <dialog id="trapDialog" class="app-dialog wide-dialog">
+    <div class="dialog-header"><div><p class="panel-kicker">Administration</p><h2>Pièges</h2></div><button class="close-button" data-close="trapDialog" type="button">×</button></div>
+    <form id="trapForm" class="dialog-form two-cols">
+      <input id="trapId" type="hidden">
+      <label>Campagne<select id="trapCampaign" required></select></label>
+      <label>Parcelle<select id="trapParcel" required></select></label>
+      <label>Code du piège<input id="trapCode" type="text" placeholder="Ex. L-01" required></label>
+      <label>Type de piège<input id="trapType" type="text" placeholder="Ex. bac jaune"></label>
+      <label>Rang<input id="trapRow" type="text"></label>
+      <label>Position<input id="trapPosition" type="text" placeholder="Ex. Nord / Sud"></label>
+      <label>Date d'installation<input id="trapInstalled" type="date"></label>
+      <label>Attractif / appât<input id="trapAttractant" type="text"></label>
+      <label class="full-span">Commentaire<textarea id="trapComment" rows="2"></textarea></label>
+      <button class="primary-button full-span" type="submit">Enregistrer le piège</button>
+    </form>
+    <div id="trapMessage" class="form-message"></div>
+    <div class="management-section"><h3>Pièges existants</h3><div id="trapManageList" class="management-list"></div></div>
+  </dialog>
+
+  <!-- ÉVÉNEMENT PIÈGE -->
+  <dialog id="trapEventDialog" class="app-dialog">
+    <div class="dialog-header"><div><p class="panel-kicker">Piège</p><h2>Ajouter un événement</h2></div><button class="close-button" data-close="trapEventDialog" type="button">×</button></div>
+    <form id="trapEventForm" class="dialog-form">
+      <label>Piège<select id="eventTrap" required></select></label>
+      <label>Date<input id="eventDate" type="date" required></label>
+      <label>Type<select id="eventType"><option value="replacement">Remplacement du piège</option><option value="attractant">Changement d'attractif / appât</option><option value="move">Déplacement</option><option value="retirement">Retrait</option><option value="other">Autre</option></select></label>
+      <label>Libellé<input id="eventLabel" type="text"></label>
+      <label>Commentaire<textarea id="eventComment" rows="2"></textarea></label>
+      <button class="primary-button" type="submit">Enregistrer l'événement</button>
+    </form>
+    <div id="eventMessage" class="form-message"></div>
+  </dialog>
+
+  <!-- RELEVÉ -->
+  <dialog id="observationDialog" class="app-dialog wide-dialog">
+    <div class="dialog-header"><div><p class="panel-kicker">Terrain</p><h2 id="observationDialogTitle">Ajouter un relevé</h2></div><button class="close-button" data-close="observationDialog" type="button">×</button></div>
+    <form id="observationForm" class="dialog-form two-cols">
+      <input id="observationId" type="hidden">
+      <label>Campagne<select id="observationCampaign" required></select></label>
+      <label>Parcelle<select id="observationParcel" required></select></label>
+
+      <section class="excel-import-card full-span" aria-label="Import Excel de relevés">
+        <div class="excel-import-header">
+          <div>
+            <p class="panel-kicker">Import de relevés</p>
+            <h3>Importer un tableau Excel</h3>
+            <p>
+              Première ligne : les dates. Première colonne : le nom des parcelles.
+              Les cellules contiennent le total des captures. Les cellules vides sont ignorées et les zéros sont conservés.
+            </p>
+          </div>
+          <label class="excel-file-button">
+            Choisir un Excel
+            <input id="observationExcelFile" type="file" accept=".xlsx,.xls,.csv">
+          </label>
+        </div>
+
+        <div class="excel-format-example" aria-label="Exemple de structure Excel">
+          <code>Dates | 23/3 | 24/3 | 25/3 | …</code>
+          <code>G&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| 0&nbsp;&nbsp;&nbsp;&nbsp;| …</code>
+          <code>J&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| 0&nbsp;&nbsp;&nbsp;&nbsp;| …</code>
+        </div>
+
+        <p class="excel-import-help">
+          Les noms doivent correspondre aux noms des parcelles dans SAM, sans la variété.
+          Si une parcelle possède plusieurs pièges actifs, sélectionne d'abord cette parcelle et le piège à utiliser.
+        </p>
+
+        <div id="excelImportPreview" class="excel-import-preview hidden"></div>
+
+        <div class="excel-import-actions">
+          <button id="cancelExcelImportButton" class="secondary-button hidden" type="button">Annuler l'import</button>
+          <button id="confirmExcelImportButton" class="primary-button hidden" type="button" disabled>Importer les relevés</button>
+        </div>
+      </section>
+
+      <label>Piège<select id="observationTrap" required></select></label>
+      <label>Date<input id="observationDate" type="date" required></label>
+      <label>Total capturé<input id="observationTotal" type="number" min="0" step="1" required></label>
+      <label class="full-span">Commentaire<textarea id="observationComment" rows="2"></textarea></label>
+      <div id="aphidDetailSection" class="full-span hidden">
+        <div class="identification-header"><div><span class="field-label">Identification détaillée</span><p>Saisis systématiquement mâles, femelles et indéterminés. Tu peux enregistrer le total puis compléter l'identification plus tard.</p></div><div id="identificationSummary" class="identification-summary">0 identifié · 0 restant</div></div>
+        <div id="aphidSpeciesRows" class="species-detail-list"></div>
+      </div>
+      <button class="primary-button full-span" type="submit">Enregistrer le relevé</button>
+    </form>
+    <div id="observationMessage" class="form-message"></div>
+  </dialog>
+
+  <!-- INTERVENTION -->
+  <dialog id="interventionDialog" class="app-dialog wide-dialog">
+    <div class="dialog-header"><div><p class="panel-kicker">Événement</p><h2>Ajouter une intervention</h2></div><button class="close-button" data-close="interventionDialog" type="button">×</button></div>
+    <form id="interventionForm" class="dialog-form two-cols">
+      <input id="interventionId" type="hidden">
+      <label>Campagne<select id="interventionCampaign" required></select></label>
+      <label>Date<input id="interventionDate" type="date" required></label>
+      <label>Heure (facultatif)<input id="interventionTime" type="time"></label>
+      <label>Type d'intervention<input id="interventionType" type="text" placeholder="Ex. traitement" required></label>
+      <label>Produit<input id="interventionProduct" type="text"></label>
+      <label>Dose<input id="interventionDose" type="text"></label>
+      <label>Cible<input id="interventionTarget" type="text"></label>
+      <label class="full-span">Parcelles concernées<div id="interventionParcelChoices" class="checkbox-grid"></div></label>
+      <label class="full-span">Commentaire<textarea id="interventionComment" rows="2"></textarea></label>
+      <button class="primary-button full-span" type="submit">Enregistrer l'intervention</button>
+    </form>
+    <div id="interventionMessage" class="form-message"></div>
+  </dialog>
+
+  <!-- ESPÈCES -->
+  <dialog id="speciesDialog" class="app-dialog">
+    <div class="dialog-header"><div><p class="panel-kicker">Référentiel</p><h2>Espèces suivies</h2></div><button class="close-button" data-close="speciesDialog" type="button">×</button></div>
+    <form id="speciesForm" class="dialog-form">
+      <input id="speciesId" type="hidden">
+      <label>Nom scientifique<input id="speciesScientific" type="text" placeholder="Ex. Dysaphis plantaginea" required></label>
+      <label>Nom commun<input id="speciesCommon" type="text"></label>
+      <button class="primary-button" id="speciesSubmitButton" type="submit">Ajouter l'espèce</button>
+      <button class="secondary-button hidden" id="speciesCancelEditButton" type="button">Annuler la modification</button>
+    </form>
+    <div id="speciesMessage" class="form-message"></div>
+    <div class="management-section"><div id="speciesManageList" class="management-list"></div></div>
+  </dialog>
+
+  <!-- ARCHIVES -->
+  <dialog id="archivesDialog" class="app-dialog wide-dialog">
+    <div class="dialog-header"><div><p class="panel-kicker">Traçabilité</p><h2>Archives</h2></div><button class="close-button" data-close="archivesDialog" type="button">×</button></div>
+    <div class="management-section"><h3>Campagnes archivées</h3><div id="archivedCampaignList" class="management-list"></div></div>
+    <div class="management-section"><h3>Parcelles archivées</h3><div id="archivedParcelList" class="management-list"></div></div>
+    <div class="management-section"><h3>Pièges archivés</h3><div id="archivedTrapList" class="management-list"></div></div>
+    <div class="management-section"><h3>Espèces archivées</h3><div id="archivedSpeciesList" class="management-list"></div></div>
+    <div class="management-section"><h3>Relevés archivés</h3><div id="archivedObservationList" class="management-list"></div></div>
+    <div class="management-section"><h3>Interventions archivées</h3><div id="archivedInterventionList" class="management-list"></div></div>
+    <div class="management-section"><h3>Événements de piège archivés</h3><div id="archivedTrapEventList" class="management-list"></div></div>
+  </dialog>
+
+
+  <!-- CONFIRMATION INTÉGRÉE À SAM -->
+  <dialog id="confirmDialog" class="app-dialog confirm-dialog" aria-labelledby="confirmDialogTitle">
+    <div class="confirm-dialog-content">
+      <div id="confirmDialogIcon" class="confirm-dialog-icon" aria-hidden="true">!</div>
+      <div>
+        <p class="panel-kicker">Confirmation</p>
+        <h2 id="confirmDialogTitle">Confirmer l’action</h2>
+        <p id="confirmDialogMessage" class="confirm-dialog-message"></p>
+      </div>
+    </div>
+    <div class="confirm-dialog-actions">
+      <button id="confirmDialogCancel" class="secondary-button" type="button">Annuler</button>
+      <button id="confirmDialogConfirm" class="danger-confirm-button" type="button">Confirmer</button>
+    </div>
+  </dialog>
+  </div>`;
+
 export async function mount(root, ctx) {
-  ctx.filters({ location: false, period: false });
-  root.innerHTML = `<div class="sam-tool-error" style="background:#f7f7f9;border-color:#e5e7eb;color:#3a3f47">
-    <strong>Intégration en cours.</strong><br>Cet outil arrive dans la prochaine mise à jour de SAM Outils.</div>`;
+  root.innerHTML = TEMPLATE;
+
+const TABLES = {
+  species: "piegeage_species",
+  campaigns: "piegeage_campaigns",
+  campaignSpecies: "piegeage_campaign_species",
+  parcels: "piegeage_parcels",
+  campaignParcels: "piegeage_campaign_parcels",
+  traps: "piegeage_traps",
+  trapEvents: "piegeage_trap_events",
+  observations: "piegeage_observations_v2",
+  details: "piegeage_observation_details",
+  interventions: "piegeage_interventions",
+  interventionParcels: "piegeage_intervention_parcels"
+};
+
+const SYNC_PRIORITY = [
+  TABLES.species,
+  TABLES.campaigns,
+  TABLES.parcels,
+  TABLES.campaignSpecies,
+  TABLES.campaignParcels,
+  TABLES.traps,
+  TABLES.trapEvents,
+  TABLES.observations,
+  TABLES.details,
+  TABLES.interventions,
+  TABLES.interventionParcels
+];
+
+const OFFLINE_DB_NAME = "sam-outils-piegeage";
+const OFFLINE_DB_VERSION = 1;
+const OFFLINE_CACHE_STORE = "cache";
+const OFFLINE_QUEUE_STORE = "queue";
+
+let db;
+let currentUser = null;
+let chart = null;
+let syncInProgress = false;
+let excelImportPlan = null;
+
+const data = {
+  species: [], campaigns: [], campaignSpecies: [], parcels: [], campaignParcels: [],
+  traps: [], trapEvents: [], observations: [], details: [], interventions: [], interventionParcels: []
+};
+
+// -----------------------------------------------------------------------------
+// Filtres multi-sélection (Parcelle, Piège, Donnée, Sexe)
+// -----------------------------------------------------------------------------
+// Chaque filtre garde l'ensemble des identifiants actuellement cochés.
+// Par défaut, tout est coché (équivalent à l'ancien "Tous" / "Toutes").
+// Mémorise la campagne pour laquelle les filtres ont été calculés, afin de
+// savoir s'il faut les remettre à "tout coché" (changement de campagne) ou
+// simplement conserver la sélection en cours (rechargement de données).
+let lastFilterCampaignId = undefined;
+const parcelFilterState = new Set();
+const trapFilterState = new Set();
+// Pas de valeur sentinelle "total" / "tous" : cocher toutes les options
+// réelles équivaut déjà au total, donc on ne propose pas de case en plus.
+const speciesFilterState = new Set();
+const sexFilterState = new Set();
+const SEX_FILTER_OPTIONS = [
+  { value: "male", label: "Mâles" },
+  { value: "female", label: "Femelles" },
+  { value: "undetermined", label: "Indéterminés" }
+];
+
+function singleSelected(state) {
+  return state.size === 1 ? [...state][0] : null;
+}
+
+function summarizeSelection(options, state, allLabel, emptyLabel = "Aucune sélection") {
+  if (!options.length) return "Aucune option";
+  if (state.size === 0) return emptyLabel;
+  if (options.every(o => state.has(o.value))) return allLabel;
+  const labels = options.filter(o => state.has(o.value)).map(o => o.label);
+  if (!labels.length) return emptyLabel;
+  return labels.length <= 2 ? labels.join(", ") : `${labels.slice(0, 2).join(", ")} +${labels.length - 2}`;
+}
+
+function buildCheckOptions(container, options, state, onToggle) {
+  if (!container) return;
+  container.innerHTML = "";
+  if (!options.length) {
+    container.innerHTML = '<p class="ms-empty">Aucune option disponible.</p>';
+    return;
+  }
+  options.forEach(opt => {
+    const label = document.createElement("label");
+    label.className = "checkbox-card ms-option";
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.value = String(opt.value);
+    input.checked = state.has(opt.value);
+    input.addEventListener("change", () => {
+      if (input.checked) state.add(opt.value); else state.delete(opt.value);
+      onToggle();
+    });
+    const span = document.createElement("span");
+    span.textContent = opt.label;
+    label.append(input, span);
+    container.appendChild(label);
+  });
+}
+
+// Reconstruit les cases à cocher d'un filtre + son résumé, et relie
+// les boutons "Tout cocher" / "Tout décocher" du panneau.
+function refreshMultiFilter(key, options, state, allLabel, onChange) {
+  const container = $(`${key}FilterOptions`);
+  const summaryEl = $(`${key}FilterSummary`);
+  const panel = $(`${key}FilterPanel`);
+
+  function rerender() {
+    buildCheckOptions(container, options, state, () => { rerender(); onChange(); });
+    if (summaryEl) summaryEl.textContent = summarizeSelection(options, state, allLabel);
+  }
+  rerender();
+
+  const allBtn = panel?.querySelector('[data-ms-action="all"]');
+  const noneBtn = panel?.querySelector('[data-ms-action="none"]');
+  if (allBtn) allBtn.onclick = () => { options.forEach(o => state.add(o.value)); rerender(); onChange(); };
+  if (noneBtn) noneBtn.onclick = () => { state.clear(); rerender(); onChange(); };
+}
+
+// Ouverture / fermeture des panneaux déroulants (un seul ouvert à la fois).
+function wireDropdownToggle(key) {
+  const toggle = $(`${key}FilterToggle`);
+  const panel = $(`${key}FilterPanel`);
+  if (!toggle || !panel) return;
+  toggle.addEventListener("click", event => {
+    event.stopPropagation();
+    if (toggle.disabled) return;
+    const isOpen = !panel.classList.contains("hidden");
+    closeAllFilterPanels();
+    if (!isOpen) {
+      panel.classList.remove("hidden");
+      toggle.setAttribute("aria-expanded", "true");
+    }
+  });
+  // Un clic à l'intérieur du panneau (case à cocher, "Tout cocher"…)
+  // ne doit pas remonter jusqu'au document et refermer le panneau.
+  panel.addEventListener("click", event => event.stopPropagation());
+}
+
+function closeAllFilterPanels() {
+  root.querySelectorAll(".ms-panel").forEach(p => p.classList.add("hidden"));
+  root.querySelectorAll(".ms-toggle").forEach(t => t.setAttribute("aria-expanded", "false"));
+}
+
+const $ = id => root.querySelector(`#${id}`);
+const uuid = () => crypto.randomUUID();
+const todayISO = () => new Date().toISOString().slice(0, 10);
+
+function setMessage(el, message = "", error = false) {
+  if (!el) return;
+  el.textContent = message;
+  el.classList.toggle("error", error);
+}
+
+function fmtDate(iso) {
+  if (!iso) return "—";
+  return new Date(`${iso}T12:00:00`).toLocaleDateString("fr-FR");
+}
+
+function fmtDateTime(iso) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
+}
+
+function fmtNumber(value, digits = 1) {
+  return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: digits }).format(Number(value || 0));
+}
+
+function slugify(value) {
+  return String(value || "")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+}
+
+function isNetworkError(error) {
+  if (!navigator.onLine) return true;
+  return /failed to fetch|network|load failed|fetch failed|networkerror/i.test(String(error?.message || error || ""));
+}
+
+// -----------------------------------------------------------------------------
+// IndexedDB : cache + file de synchronisation générique
+// -----------------------------------------------------------------------------
+function openOfflineDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(OFFLINE_DB_NAME, OFFLINE_DB_VERSION);
+    request.onupgradeneeded = () => {
+      const database = request.result;
+      if (!database.objectStoreNames.contains(OFFLINE_CACHE_STORE)) {
+        database.createObjectStore(OFFLINE_CACHE_STORE, { keyPath: "key" });
+      }
+      if (!database.objectStoreNames.contains(OFFLINE_QUEUE_STORE)) {
+        database.createObjectStore(OFFLINE_QUEUE_STORE, { keyPath: "key" });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function idbGetAll(storeName) {
+  const database = await openOfflineDb();
+  return new Promise((resolve, reject) => {
+    const tx = database.transaction(storeName, "readonly");
+    const req = tx.objectStore(storeName).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function idbPut(storeName, value) {
+  const database = await openOfflineDb();
+  return new Promise((resolve, reject) => {
+    const tx = database.transaction(storeName, "readwrite");
+    tx.objectStore(storeName).put(value);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function idbDelete(storeName, key) {
+  const database = await openOfflineDb();
+  return new Promise((resolve, reject) => {
+    const tx = database.transaction(storeName, "readwrite");
+    tx.objectStore(storeName).delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function saveCache() {
+  try {
+    await idbPut(OFFLINE_CACHE_STORE, {
+      key: "dataset",
+      saved_at: new Date().toISOString(),
+      data: JSON.parse(JSON.stringify(data))
+    });
+  } catch (error) {
+    console.warn("Cache local non enregistré", error);
+  }
+}
+
+async function loadCache() {
+  try {
+    const rows = await idbGetAll(OFFLINE_CACHE_STORE);
+    const cache = rows.find(row => row.key === "dataset");
+    if (!cache?.data) return false;
+    Object.keys(data).forEach(key => { data[key] = cache.data[key] || []; });
+    return true;
+  } catch (error) {
+    console.warn("Cache local indisponible", error);
+    return false;
+  }
+}
+
+async function queueRecord(table, payload) {
+  const key = `${table}:${payload.id}`;
+  await idbPut(OFFLINE_QUEUE_STORE, { key, table, payload, saved_at: new Date().toISOString() });
+  updateSyncStatus();
+}
+
+async function pendingQueue() {
+  try { return await idbGetAll(OFFLINE_QUEUE_STORE); }
+  catch { return []; }
+}
+
+function keyForTable(table) {
+  return Object.entries(TABLES).find(([, value]) => value === table)?.[0];
+}
+
+function applyLocal(table, payload) {
+  const key = keyForTable(table);
+  if (!key) return;
+  const list = data[key];
+  const index = list.findIndex(row => row.id === payload.id);
+  if (index >= 0) list[index] = { ...list[index], ...payload, _pending: !navigator.onLine };
+  else list.push({ ...payload, _pending: !navigator.onLine });
+}
+
+function cleanPayload(payload) {
+  return Object.fromEntries(Object.entries(payload).filter(([key]) => !key.startsWith("_")));
+}
+
+async function writeRecord(table, payload, options = {}) {
+  payload = cleanPayload(payload);
+  applyLocal(table, payload);
+  await saveCache();
+
+  if (!currentUser) throw new Error("Connexion administrateur requise.");
+
+  if (navigator.onLine) {
+    const { data: saved, error } = await db.from(table).upsert(payload, { onConflict: "id" }).select().maybeSingle();
+    if (!error) {
+      if (saved) applyLocal(table, { ...saved, _pending: false });
+      await idbDelete(OFFLINE_QUEUE_STORE, `${table}:${payload.id}`).catch(() => {});
+      await saveCache();
+      return saved || payload;
+    }
+    if (!isNetworkError(error)) {
+      if (!options.silent) throw error;
+      console.warn(error);
+      return payload;
+    }
+  }
+
+  await queueRecord(table, payload);
+  return payload;
+}
+
+async function syncQueue() {
+  if (syncInProgress || !navigator.onLine || !currentUser) return;
+  const queue = await pendingQueue();
+  if (!queue.length) { updateSyncStatus(); return; }
+
+  syncInProgress = true;
+  updateSyncStatus(`Synchronisation de ${queue.length} élément${queue.length > 1 ? "s" : ""}…`, "syncing");
+  const sorted = queue.slice().sort((a, b) => SYNC_PRIORITY.indexOf(a.table) - SYNC_PRIORITY.indexOf(b.table));
+  let done = 0;
+
+  for (const item of sorted) {
+    const { error } = await db.from(item.table).upsert(item.payload, { onConflict: "id" });
+    if (!error) {
+      await idbDelete(OFFLINE_QUEUE_STORE, item.key);
+      done++;
+      continue;
+    }
+    if (isNetworkError(error)) break;
+    console.warn("Synchronisation impossible", item.table, error);
+  }
+
+  syncInProgress = false;
+  if (done) {
+    updateSyncStatus(`${done} élément${done > 1 ? "s" : ""} synchronisé${done > 1 ? "s" : ""}`, "success");
+    await loadData(true);
+    setTimeout(() => updateSyncStatus(), 3500);
+  } else updateSyncStatus();
+}
+
+async function updateSyncStatus(message = null, mode = null) {
+  const box = $("syncStatus");
+  if (!box) return;
+  box.classList.remove("hidden", "offline", "syncing", "success");
+
+  if (message) {
+    box.textContent = message;
+    if (mode) box.classList.add(mode);
+    return;
+  }
+
+  const queue = await pendingQueue();
+  if (!navigator.onLine) {
+    box.textContent = queue.length ? `Hors connexion — ${queue.length} élément${queue.length > 1 ? "s" : ""} en attente` : "Hors connexion";
+    box.classList.add("offline");
+  } else if (queue.length) {
+    box.textContent = `${queue.length} élément${queue.length > 1 ? "s" : ""} en attente de synchronisation`;
+    box.classList.add("syncing");
+  } else box.classList.add("hidden");
+}
+
+// -----------------------------------------------------------------------------
+// Supabase / authentification
+// -----------------------------------------------------------------------------
+async function init() {
+  db = ctx.supabase;
+  if (!db) {
+    setMessage($("globalMessage"), "Connexion à la base indisponible : aucune donnée ne peut être affichée.", true);
+    return;
+  }
+  currentUser = ctx.isAdmin ? ctx.user : null;
+  renderAuth();
+  await loadData();
+  if (currentUser) await syncQueue();
+}
+
+function renderAuth() {
+  $("adminActions").classList.toggle("hidden", !currentUser);
+  if (typeof renderMap === "function") renderMap();
+}
+
+async function fetchTable(table) {
+  return await fetchAllRows(() => db.from(table).select("*").order("id"));
+}
+
+async function loadData(silent = false) {
+  if (!db) return;
+  if (!silent) setMessage($("globalMessage"), "Chargement…");
+
+  if (!navigator.onLine) {
+    const cached = await loadCache();
+    if (!cached) setMessage($("globalMessage"), "Aucune donnée locale disponible. Ouvre l’application une première fois avec Internet.", true);
+    else { setMessage($("globalMessage")); renderAll(); }
+    updateSyncStatus();
+    return;
+  }
+
+  const entries = Object.entries(TABLES);
+  const results = await Promise.all(entries.map(([, table]) => fetchTable(table)));
+  const firstError = results.find(r => r.error)?.error;
+
+  if (firstError) {
+    const cached = await loadCache();
+    if (cached && isNetworkError(firstError)) {
+      setMessage($("globalMessage")); renderAll(); updateSyncStatus(); return;
+    }
+    setMessage($("globalMessage"), `Chargement impossible : ${firstError.message}`, true);
+    return;
+  }
+
+  entries.forEach(([key], index) => { data[key] = results[index].data || []; });
+  await saveCache();
+  setMessage($("globalMessage"));
+  renderAll();
+  updateSyncStatus();
+}
+
+// -----------------------------------------------------------------------------
+// Sélecteurs / relations
+// -----------------------------------------------------------------------------
+function activeRows(list) { return list.filter(row => !row.archived_at); }
+function campaignById(id) { return data.campaigns.find(row => row.id === id); }
+function parcelById(id) { return data.parcels.find(row => row.id === id); }
+function parcelLabel(parcel, { compact = false } = {}) {
+  if (!parcel) return "—";
+
+  const parts = [
+    parcel.name,
+    parcel.exploitation || "",
+    parcel.variety || "",
+    Number.isFinite(Number(parcel.area_ha)) ? `${fmtNumber(parcel.area_ha, 2)} ha` : ""
+  ].filter(Boolean);
+
+  return compact
+    ? [parcel.name, parcel.exploitation || ""].filter(Boolean).join(" — ")
+    : parts.join(" — ");
+}
+
+function sameParcelIdentity(a, b) {
+  return (
+    String(a.exploitation || "").trim().toLocaleLowerCase("fr-FR") ===
+      String(b.exploitation || "").trim().toLocaleLowerCase("fr-FR") &&
+    String(a.name || "").trim().toLocaleLowerCase("fr-FR") ===
+      String(b.name || "").trim().toLocaleLowerCase("fr-FR") &&
+    String(a.variety || "").trim().toLocaleLowerCase("fr-FR") ===
+      String(b.variety || "").trim().toLocaleLowerCase("fr-FR") &&
+    Number(a.area_ha) === Number(b.area_ha)
+  );
+}
+
+function trapById(id) { return data.traps.find(row => row.id === id); }
+function speciesById(id) { return data.species.find(row => row.id === id); }
+
+function activeCampaigns() {
+  return activeRows(data.campaigns).sort((a, b) => b.year - a.year || a.name.localeCompare(b.name, "fr"));
+}
+
+function campaignSpecies(campaignId) {
+  const ids = data.campaignSpecies.filter(link => link.campaign_id === campaignId && link.active !== false).map(link => link.species_id);
+  return data.species.filter(s => ids.includes(s.id) && s.active !== false && !s.archived_at).sort((a, b) => a.scientific_name.localeCompare(b.scientific_name, "fr"));
+}
+
+function parcelsForCampaign(campaignId) {
+  // Une parcelle n'est proposée dans une campagne que si elle possède
+  // actuellement au moins un piège non archivé dans cette campagne.
+  // Les anciens liens campaign_parcels restent conservés en base pour
+  // l'historique, mais ne pilotent plus les filtres et la saisie courante.
+  const activeParcelIds = new Set(
+    activeRows(data.traps)
+      .filter(trap => trap.campaign_id === campaignId)
+      .map(trap => trap.parcel_id)
+  );
+
+  return activeRows(data.parcels)
+    .filter(parcel => activeParcelIds.has(parcel.id))
+    .sort((a, b) =>
+      a.name.localeCompare(b.name, "fr") ||
+      String(a.exploitation || "").localeCompare(String(b.exploitation || ""), "fr") ||
+      String(a.variety || "").localeCompare(String(b.variety || ""), "fr") ||
+      Number(a.area_ha || 0) - Number(b.area_ha || 0)
+    );
+}
+
+function trapsForCampaign(campaignId, parcelId = "all") {
+  return activeRows(data.traps)
+    .filter(t => t.campaign_id === campaignId && (parcelId === "all" || t.parcel_id === parcelId))
+    .sort((a, b) => a.code.localeCompare(b.code, "fr"));
+}
+
+function fillSelect(select, options, selected = null) {
+  if (!select) return;
+  select.innerHTML = "";
+  options.forEach(opt => select.add(new Option(opt.label, opt.value)));
+  if (selected != null && options.some(o => String(o.value) === String(selected))) select.value = selected;
+}
+
+function populateMainFilters() {
+  const campaignSelect = $("campaignFilter");
+  const previousCampaign = campaignSelect.value;
+  const campaigns = activeCampaigns();
+  fillSelect(campaignSelect, campaigns.length ? campaigns.map(c => ({ value: c.id, label: `${c.year} — ${c.name}` })) : [{ value: "", label: "Aucune campagne" }], previousCampaign);
+  if (!campaignSelect.value && campaigns[0]) campaignSelect.value = campaigns[0].id;
+  populateParcelFilter();
+}
+
+function populateParcelFilter() {
+  const campaignId = $("campaignFilter").value;
+
+  // Si on change réellement de campagne, on repart sur "tout coché" pour
+  // les 4 filtres (parcelle, piège, espèce, sexe), même si une parcelle ou
+  // un piège porte le même identifiant dans les deux campagnes : le choix
+  // par défaut doit toujours être "tout" pour chaque nouvelle campagne.
+  if (campaignId !== lastFilterCampaignId) {
+    parcelFilterState.clear();
+    trapFilterState.clear();
+    speciesFilterState.clear();
+    sexFilterState.clear();
+    lastFilterCampaignId = campaignId;
+  }
+
+  const parcels = parcelsForCampaign(campaignId);
+  const availableIds = parcels.map(p => p.id);
+
+  // On conserve la sélection en cours quand elle reste valide pour la
+  // même campagne (ex. rechargement en arrière-plan) ; sinon on repart
+  // sur "toutes les parcelles".
+  const kept = [...parcelFilterState].filter(id => availableIds.includes(id));
+  parcelFilterState.clear();
+  (kept.length ? kept : availableIds).forEach(id => parcelFilterState.add(id));
+
+  const options = parcels.map(p => ({ value: p.id, label: parcelLabel(p) }));
+  refreshMultiFilter("parcel", options, parcelFilterState, "Toutes les parcelles", () => {
+    populateTrapFilter();
+  });
+  populateTrapFilter();
+}
+
+function populateTrapFilter() {
+  const campaignId = $("campaignFilter").value;
+  const traps = trapsForCampaign(campaignId).filter(t => parcelFilterState.has(t.parcel_id));
+  const availableIds = traps.map(t => t.id);
+
+  const kept = [...trapFilterState].filter(id => availableIds.includes(id));
+  trapFilterState.clear();
+  (kept.length ? kept : availableIds).forEach(id => trapFilterState.add(id));
+
+  const options = traps.map(t => ({ value: t.id, label: `${t.code}${parcelById(t.parcel_id) ? ` — ${parcelLabel(parcelById(t.parcel_id), { compact: true })}` : ""}` }));
+  refreshMultiFilter("trap", options, trapFilterState, "Tous les pièges", () => {
+    renderDashboard();
+  });
+  populateSpeciesFilter();
+}
+
+function populateSpeciesFilter() {
+  const campaign = campaignById($("campaignFilter").value);
+  const advanced = campaign?.protocol_type === "aphid";
+
+  // Pas de case "Total des captures" : cocher toutes les espèces revient
+  // déjà au total, donc la liste ne contient que les espèces réelles.
+  const options = advanced ? campaignSpecies(campaign.id).map(s => ({ value: s.id, label: s.scientific_name })) : [];
+
+  const availableValues = options.map(o => o.value);
+  const kept = [...speciesFilterState].filter(v => availableValues.includes(v));
+  speciesFilterState.clear();
+  (kept.length ? kept : availableValues).forEach(v => speciesFilterState.add(v));
+
+  $("speciesFilterToggle").disabled = !advanced;
+  refreshMultiFilter("species", options, speciesFilterState, "Total des captures", () => {
+    renderDashboard();
+  });
+
+  // Le protocole avancé permet de filtrer M / F / indéterminés.
+  // En protocole simple, il n'y a pas d'identification : le filtre est
+  // désactivé et reste sur "tout coché" (équivalent à l'ancien "Tous").
+  $("sexFilterToggle").disabled = !advanced;
+  if (!advanced || sexFilterState.size === 0) {
+    sexFilterState.clear();
+    SEX_FILTER_OPTIONS.forEach(o => sexFilterState.add(o.value));
+  }
+  refreshMultiFilter("sex", SEX_FILTER_OPTIONS, sexFilterState, "Tous", () => {
+    renderDashboard();
+  });
+
+  renderDashboard();
+}
+
+function populateAdminSelects() {
+  const campaigns = activeCampaigns();
+  const campaignOpts = campaigns.map(c => ({ value: c.id, label: `${c.year} — ${c.name}` }));
+  ["trapCampaign", "observationCampaign", "interventionCampaign"].forEach(id => fillSelect($(id), campaignOpts, $(id)?.value || $("campaignFilter").value));
+  populateTrapParcelSelect();
+  populateObservationParcelSelect();
+  populateEventTrapSelect();
+}
+
+function populateTrapParcelSelect() {
+  const campaignId = $("trapCampaign")?.value;
+  const allParcels = activeRows(data.parcels).sort((a, b) => a.exploitation.localeCompare(b.exploitation, "fr") || a.name.localeCompare(b.name, "fr"));
+  fillSelect($("trapParcel"), allParcels.map(p => ({ value: p.id, label: parcelLabel(p) })), $("trapParcel")?.value);
+}
+
+function populateObservationParcelSelect(preferredParcel = null, preferredTrap = null) {
+  const campaignId = $("observationCampaign")?.value;
+  const parcels = parcelsForCampaign(campaignId);
+  fillSelect($("observationParcel"), parcels.map(p => ({ value: p.id, label: parcelLabel(p) })), preferredParcel || $("observationParcel")?.value);
+  populateObservationTrapSelect(preferredTrap);
+  renderObservationSpeciesRows();
+}
+
+function populateObservationTrapSelect(preferred = null) {
+  const campaignId = $("observationCampaign")?.value;
+  const parcelId = $("observationParcel")?.value;
+  const traps = trapsForCampaign(campaignId, parcelId);
+  fillSelect($("observationTrap"), traps.map(t => ({ value: t.id, label: t.code })), preferred || $("observationTrap")?.value);
+}
+
+function populateEventTrapSelect() {
+  const campaignId = $("campaignFilter").value;
+  const traps = trapsForCampaign(campaignId);
+  fillSelect($("eventTrap"), traps.map(t => ({ value: t.id, label: `${parcelById(t.parcel_id)?.name || ""} — ${t.code}` })), $("eventTrap")?.value);
+}
+
+function renderAll() {
+  populateMainFilters();
+  populateAdminSelects();
+  renderManagementLists();
+  renderDashboard();
+}
+
+// -----------------------------------------------------------------------------
+// Analyses
+// -----------------------------------------------------------------------------
+function selectedObservations() {
+  const campaignId = $("campaignFilter").value;
+  return activeRows(data.observations).filter(obs => {
+    if (obs.campaign_id !== campaignId) return false;
+    const range = ctx.period.get();
+    if (range?.start && obs.observed_on < range.start) return false;
+    if (range?.end && obs.observed_on > range.end) return false;
+    const trap = trapById(obs.trap_id);
+    if (!trap || trap.archived_at) return false;
+    if (!parcelFilterState.has(trap.parcel_id)) return false;
+    if (!trapFilterState.has(obs.trap_id)) return false;
+    return true;
+  }).sort((a, b) => a.observed_on.localeCompare(b.observed_on));
+}
+
+function detailsForObservation(obsId) { return data.details.filter(d => d.observation_id === obsId); }
+
+function identifiedTotal(obsId) {
+  return detailsForObservation(obsId).reduce((sum, d) => sum + Number(d.males || 0) + Number(d.females || 0) + Number(d.undetermined || 0), 0);
+}
+
+// Espèce(s) et sexe(s) cochés dans les filtres "Donnée" et "Sexe" sont
+// combinés en une somme : plusieurs espèces et/ou plusieurs catégories
+// de sexe peuvent être affichées ensemble sur la même courbe.
+function observationValue(obs) {
+  const campaign = campaignById($("campaignFilter").value);
+  const advanced = campaign?.protocol_type === "aphid";
+  const speciesOptions = advanced ? campaignSpecies(campaign.id) : [];
+  // "Toutes les espèces cochées" équivaut au total (comme l'ancienne case
+  // "Total des captures", qui n'existe plus en tant qu'option séparée).
+  const useTotal = !advanced || speciesOptions.length === 0 || speciesOptions.every(s => speciesFilterState.has(s.id));
+  const useAllSex = SEX_FILTER_OPTIONS.every(o => sexFilterState.has(o.value));
+
+  if (useTotal) {
+    if (useAllSex) return Number(obs.total_captured || 0);
+    const details = detailsForObservation(obs.id);
+    let sum = 0;
+    if (sexFilterState.has("male")) sum += details.reduce((s, d) => s + Number(d.males || 0), 0);
+    if (sexFilterState.has("female")) sum += details.reduce((s, d) => s + Number(d.females || 0), 0);
+    if (sexFilterState.has("undetermined")) sum += details.reduce((s, d) => s + Number(d.undetermined || 0), 0);
+    return sum;
+  }
+
+  const details = data.details.filter(d => d.observation_id === obs.id && speciesFilterState.has(d.species_id));
+  if (!details.length) return 0;
+  if (useAllSex) {
+    return details.reduce((sum, d) => sum + Number(d.males || 0) + Number(d.females || 0) + Number(d.undetermined || 0), 0);
+  }
+  let sum = 0;
+  details.forEach(d => {
+    if (sexFilterState.has("male")) sum += Number(d.males || 0);
+    if (sexFilterState.has("female")) sum += Number(d.females || 0);
+    if (sexFilterState.has("undetermined")) sum += Number(d.undetermined || 0);
+  });
+  return sum;
+}
+
+function daysBetween(a, b) {
+  const ms = new Date(`${b}T12:00:00`) - new Date(`${a}T12:00:00`);
+  return Math.max(1, Math.round(ms / 86400000));
+}
+
+function observationValueWithUnit(obs, allTrapObs) {
+  const value = observationValue(obs);
+  if ($("unitFilter").value !== "per_day") return value;
+  const index = allTrapObs.findIndex(o => o.id === obs.id);
+  const trap = trapById(obs.trap_id);
+  const previousObservationDate = index > 0 ? allTrapObs[index - 1].observed_on : null;
+  const resetEvents = activeRows(data.trapEvents)
+    .filter(e => e.trap_id === obs.trap_id && ["installation", "replacement"].includes(e.event_type) && e.event_date <= obs.observed_on)
+    .sort((a, b) => b.event_date.localeCompare(a.event_date));
+  const resetDate = resetEvents[0]?.event_date || trap?.installed_on || null;
+  let previousDate = previousObservationDate || resetDate;
+  if (resetDate && previousObservationDate && resetDate > previousObservationDate) previousDate = resetDate;
+  if (!previousDate) return null;
+  return value / daysBetween(previousDate, obs.observed_on);
+}
+
+function campaignAnchor(campaign, observations) {
+  if (campaign?.start_date) return campaign.start_date;
+  const dates = observations.map(o => o.observed_on).sort();
+  return dates[0] || todayISO();
+}
+
+function bucketStart(date, anchor) {
+  const d = new Date(`${date}T12:00:00`);
+  const a = new Date(`${anchor}T12:00:00`);
+  const diff = Math.floor((d - a) / 86400000);
+  const offset = Math.floor(Math.max(0, diff) / 7) * 7;
+  const out = new Date(a); out.setDate(out.getDate() + offset);
+  return out.toISOString().slice(0, 10);
+}
+
+function seriesData() {
+  const observations = selectedObservations();
+  const campaign = campaignById($("campaignFilter").value);
+  const processing = $("processingFilter").value;
+  const unit = $("unitFilter").value;
+  const anchor = campaignAnchor(campaign, observations);
+  const trapIds = [...new Set(observations.map(o => o.trap_id))];
+  const series = [];
+
+  trapIds.forEach(trapId => {
+    const trap = trapById(trapId);
+    const parcel = parcelById(trap?.parcel_id);
+    const trapObs = observations.filter(o => o.trap_id === trapId).sort((a, b) => a.observed_on.localeCompare(b.observed_on));
+    let points = [];
+
+    if (processing === "observed") {
+      points = trapObs.map(obs => ({ date: obs.observed_on, value: observationValueWithUnit(obs, trapObs) }));
+    } else {
+      const groups = new Map();
+      trapObs.forEach(obs => {
+        const week = bucketStart(obs.observed_on, anchor);
+        if (!groups.has(week)) groups.set(week, []);
+        const v = observationValueWithUnit(obs, trapObs);
+        if (v != null) groups.get(week).push(v);
+      });
+      const weeks = [...groups.keys()].sort();
+      const weekly = weeks.map(week => {
+        const values = groups.get(week);
+        const value = unit === "per_day" ? values.reduce((a,b)=>a+b,0) / Math.max(1, values.length) : values.reduce((a,b)=>a+b,0);
+        return { date: week, value };
+      });
+      if (processing === "weekly") points = weekly;
+      else points = weekly.map((point, index) => ({ date: point.date, value: index === 0 ? point.value : (point.value + weekly[index - 1].value) / 2 }));
+    }
+
+    series.push({ trap, parcel, label: `${parcelLabel(parcel, { compact: true })} — ${trap?.code || "Piège"}`, points });
+  });
+
+  return { campaign, observations, series, anchor };
+}
+
+function eventDateForProcessing(date, anchor) {
+  return $("processingFilter").value === "observed" ? date : bucketStart(date, anchor);
+}
+
+const eventLinePlugin = {
+  id: "samEvents",
+  afterDatasetsDraw(chartInstance, _args, pluginOptions) {
+    const events = pluginOptions?.events || [];
+    const x = chartInstance.scales.x;
+    const y = chartInstance.scales.y;
+    if (!x || !y) return;
+
+    const ctx = chartInstance.ctx;
+
+    events.forEach(event => {
+      const index = chartInstance.data.labels.indexOf(event.date);
+      if (index < 0) return;
+
+      const px = x.getPixelForValue(index);
+
+      ctx.save();
+      ctx.strokeStyle = "#c99214";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath();
+      ctx.moveTo(px, y.top);
+      ctx.lineTo(px, y.bottom);
+      ctx.stroke();
+      ctx.restore();
+
+      // Le libellé des interventions est affiché directement
+      // au-dessus du pointillé. Les événements de piège restent
+      // uniquement matérialisés par la ligne + la bulle sous le graphique.
+      if (event.kind === "intervention" && event.label) {
+        ctx.save();
+        ctx.font = "700 11px Arial, sans-serif";
+        ctx.fillStyle = "#8c5a11";
+        ctx.textBaseline = "bottom";
+
+        const measured = ctx.measureText(event.label).width;
+        const leftRoom = px - x.left;
+        const rightRoom = x.right - px;
+
+        if (leftRoom < measured / 2 + 8) {
+          ctx.textAlign = "left";
+        } else if (rightRoom < measured / 2 + 8) {
+          ctx.textAlign = "right";
+        } else {
+          ctx.textAlign = "center";
+        }
+
+        ctx.fillText(event.label, px, y.top - 8);
+        ctx.restore();
+      }
+    });
+  }
+};
+Chart.register(eventLinePlugin);
+
+function renderDashboard() {
+  if (!$("campaignFilter")) return;
+  renderMetrics();
+  renderChart();
+  renderHistory();
+  renderMap();
+}
+
+function renderMetrics() {
+  const observations = selectedObservations();
+  if (!observations.length) {
+    $("lastValue").textContent = "—"; $("lastDate").textContent = "Aucune donnée";
+    $("seasonTotal").textContent = "—"; $("identificationValue").textContent = "—"; $("identificationText").textContent = "—";
+    $("recordCount").textContent = "0"; $("recordPeriod").textContent = "—"; return;
+  }
+  const last = observations[observations.length - 1];
+  const values = observations.map(o => observationValue(o));
+  $("lastValue").textContent = fmtNumber(observationValue(last), 1);
+  $("lastDate").textContent = fmtDate(last.observed_on);
+  $("seasonTotal").textContent = fmtNumber(values.reduce((a,b)=>a+b,0), 1);
+  $("seasonUnit").textContent = $("unitFilter").value === "per_day" ? "valeur brute cumulée — voir courbe/jour" : "captures";
+  const totalCaptured = observations.reduce((sum, o) => sum + Number(o.total_captured || 0), 0);
+  const identified = observations.reduce((sum, o) => sum + identifiedTotal(o.id), 0);
+  const pct = totalCaptured ? Math.round(100 * identified / totalCaptured) : 0;
+  $("identificationValue").textContent = campaignById($("campaignFilter").value)?.protocol_type === "aphid" ? `${pct} %` : "—";
+  $("identificationText").textContent = campaignById($("campaignFilter").value)?.protocol_type === "aphid" ? `${identified} identifiés / ${totalCaptured}` : "Protocole simple";
+  $("recordCount").textContent = observations.length;
+  $("recordPeriod").textContent = `${fmtDate(observations[0].observed_on)} → ${fmtDate(last.observed_on)}`;
+}
+
+function speciesFilterLabel() {
+  const campaign = campaignById($("campaignFilter").value);
+  const advanced = campaign?.protocol_type === "aphid";
+  if (!advanced) return "Total des captures";
+  const options = campaignSpecies(campaign.id);
+  if (!options.length) return "Total des captures";
+  if (speciesFilterState.size === 0) return "Aucune espèce sélectionnée";
+  // Toutes les espèces cochées = équivalent de l'ancienne case "Total des
+  // captures" : le titre doit rester logique et l'annoncer comme tel.
+  if (options.every(s => speciesFilterState.has(s.id))) return "Total des captures";
+  // Sinon, on liste TOUTES les espèces cochées, sans jamais tronquer en "+N".
+  const names = options.filter(s => speciesFilterState.has(s.id)).map(s => s.scientific_name);
+  return names.length ? names.join(" + ") : "Aucune espèce sélectionnée";
+}
+
+function sexFilterLabel() {
+  const campaign = campaignById($("campaignFilter").value);
+  const advanced = campaign?.protocol_type === "aphid";
+  if (!advanced) return "";
+  if (sexFilterState.size === 0) return " — aucun sexe sélectionné";
+  // Tous les sexes cochés revient à ne préciser aucun filtre de sexe.
+  if (SEX_FILTER_OPTIONS.every(o => sexFilterState.has(o.value))) return "";
+  const labelMap = { male: "Mâles", female: "Femelles", undetermined: "Indéterminés" };
+  const labels = SEX_FILTER_OPTIONS.filter(o => sexFilterState.has(o.value)).map(o => labelMap[o.value]);
+  return labels.length ? ` — ${labels.join(" + ")}` : "";
+}
+
+function renderChart() {
+  const { campaign, series, anchor } = seriesData();
+  const speciesLabel = speciesFilterLabel();
+  const sexLabel = sexFilterLabel();
+  const unitLabel = $("unitFilter").value === "per_day" ? "captures / jour" : "captures";
+  const processLabel = { observed: "valeurs observées", weekly: "total hebdomadaire", smoothed: "lissage moyenne semaine courante + précédente" }[$("processingFilter").value];
+  $("chartTitle").textContent = `${speciesLabel}${sexLabel} — ${unitLabel} — ${processLabel}`;
+  $("campaignSummary").textContent = campaign ? `${campaign.pest_label} · ${campaign.year} · protocole ${campaign.protocol_type === "aphid" ? "avancé" : "simple"}` : "";
+
+  const labelsSet = new Set();
+  series.forEach(s => s.points.forEach(p => labelsSet.add(p.date)));
+
+  const allCampaignParcelIds = parcelsForCampaign(campaign?.id).map(p => p.id);
+  const noParcelFilterApplied = allCampaignParcelIds.length > 0 && allCampaignParcelIds.every(id => parcelFilterState.has(id));
+  const interventions = activeRows(data.interventions).filter(i => {
+    if (i.campaign_id !== campaign?.id) return false;
+    if (noParcelFilterApplied) return true;
+    const links = data.interventionParcels.filter(l => l.intervention_id === i.id);
+    return !links.length || links.some(l => parcelFilterState.has(l.parcel_id));
+  });
+  const relevantTrapIds = new Set(series.map(s => s.trap.id));
+  const trapEvents = activeRows(data.trapEvents).filter(e => relevantTrapIds.has(e.trap_id));
+
+  // Plusieurs interventions le même jour partagent le même pointillé.
+  // On affiche au-dessus uniquement le contenu du champ "Type d'intervention".
+  const interventionEventsByDate = new Map();
+  interventions.forEach(intervention => {
+    const date = intervention.intervention_date;
+    if (!interventionEventsByDate.has(date)) interventionEventsByDate.set(date, new Set());
+    if (intervention.intervention_type) {
+      interventionEventsByDate.get(date).add(intervention.intervention_type.trim());
+    }
+  });
+
+  const interventionGraphEvents = [...interventionEventsByDate.entries()].map(([date, types]) => ({
+    date,
+    kind: "intervention",
+    label: [...types].filter(Boolean).join(" / ") || "Intervention"
+  }));
+
+  // Pour les pièges, une seule ligne pointillée suffit lorsqu'il y a
+  // plusieurs événements positionnés à la même date affichée.
+  const trapGraphEventsByDate = new Map();
+  trapEvents.forEach(event => {
+    const date = eventDateForProcessing(event.event_date, anchor);
+    if (!trapGraphEventsByDate.has(date)) {
+      trapGraphEventsByDate.set(date, {
+        date,
+        kind: "trap",
+        label: "Piège"
+      });
+    }
+  });
+
+  const events = [
+    ...interventionGraphEvents,
+    ...trapGraphEventsByDate.values()
+  ];
+
+  events.forEach(e => labelsSet.add(e.date));
+  const labels = [...labelsSet].sort();
+
+  const datasets = series.map((s, index) => ({
+    label: s.label,
+    data: labels.map(date => s.points.find(p => p.date === date)?.value ?? null),
+    borderWidth: 2,
+    pointRadius: 3,
+    tension: .2,
+    spanGaps: true
+  }));
+
+  $("chartEmpty").classList.toggle("hidden", Boolean(datasets.length));
+  if (chart) chart.destroy();
+  chart = new Chart($("trapChart"), {
+    type: "line",
+    data: { labels: labels.map(fmtDate), datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false, interaction: { mode: "nearest", intersect: false },
+      layout: { padding: { top: 28 } },
+      plugins: { legend: { position: "bottom" }, samEvents: { events: events.map(e => ({ ...e, date: fmtDate(e.date) })) } },
+      scales: { y: { beginAtZero: true, title: { display: true, text: unitLabel } }, x: { ticks: { maxRotation: 45, minRotation: 0 } } }
+    }
+  });
+
+  const legend = $("eventLegend");
+  legend.innerHTML = "";
+
+  const groupedInstallations = new Map();
+  const otherTrapEvents = [];
+
+  trapEvents.forEach(event => {
+    if (event.event_type === "installation") {
+      if (!groupedInstallations.has(event.event_date)) {
+        groupedInstallations.set(event.event_date, []);
+      }
+      groupedInstallations.get(event.event_date).push(event);
+    } else {
+      otherTrapEvents.push(event);
+    }
+  });
+
+  const trapLegendEvents = [];
+
+  groupedInstallations.forEach((records, date) => {
+    const parcelNames = [];
+    const seenParcelIds = new Set();
+
+    records.forEach(record => {
+      const trap = trapById(record.trap_id);
+      const parcel = parcelById(trap?.parcel_id);
+      if (!parcel || seenParcelIds.has(parcel.id)) return;
+      seenParcelIds.add(parcel.id);
+      parcelNames.push(parcel.name);
+    });
+
+    trapLegendEvents.push({
+      type: "Piège",
+      date,
+      label: `Installation ${parcelNames.join(", ")}`,
+      records,
+      table: TABLES.trapEvents
+    });
+  });
+
+  otherTrapEvents.forEach(record => {
+    const trap = trapById(record.trap_id);
+    const parcel = parcelById(trap?.parcel_id);
+    const eventName =
+      record.event_type === "replacement" ? "Remplacement" :
+      record.event_type === "attractant_change" ? "Changement attractif" :
+      (record.label || record.event_type);
+
+    trapLegendEvents.push({
+      type: "Piège",
+      date: record.event_date,
+      label: `${eventName}${parcel ? ` ${parcel.name}` : ""}`,
+      records: [record],
+      table: TABLES.trapEvents
+    });
+  });
+
+  trapLegendEvents
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .forEach(event => {
+      const chip = document.createElement("span");
+      chip.className = "event-chip";
+      chip.textContent = `${fmtDate(event.date)} · ${event.type} : ${event.label}`;
+
+      if (currentUser) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "event-archive-button";
+        btn.textContent = " ×";
+        btn.title = event.records.length > 1 ? "Archiver ces événements" : "Archiver";
+        btn.style.cssText = "border:0;background:transparent;color:inherit;font-weight:900;padding:0 0 0 4px";
+
+        btn.addEventListener("click", async () => {
+          const confirmed = await showSamConfirmation({
+            title: event.records.length > 1 ? "Archiver ces installations ?" : "Archiver cet événement ?",
+            message: event.records.length > 1
+              ? `${event.records.length} installations seront déplacées dans les Archives et pourront être restaurées plus tard.`
+              : "L’événement sera déplacé dans les Archives et pourra être restauré plus tard.",
+            confirmText: "Archiver",
+            mode: "archive"
+          });
+
+          if (!confirmed) return;
+
+          for (const record of event.records) {
+            await archiveRecord(event.table, record, true);
+          }
+
+          renderAll();
+        });
+
+        chip.appendChild(btn);
+      }
+
+      legend.appendChild(chip);
+    });
+}
+
+function renderHistory() {
+  const container = $("historyList"); container.innerHTML = "";
+  const observations = selectedObservations().slice().sort((a,b)=>b.observed_on.localeCompare(a.observed_on) || String(b.created_at).localeCompare(String(a.created_at)));
+  if (!observations.length) { container.innerHTML = '<div class="history-empty">Aucun relevé pour cette sélection.</div>'; return; }
+
+  observations.forEach(obs => {
+    const trap = trapById(obs.trap_id); const parcel = parcelById(trap?.parcel_id); const details = detailsForObservation(obs.id);
+    const identified = identifiedTotal(obs.id); const remaining = Math.max(0, Number(obs.total_captured || 0) - identified);
+    const card = document.createElement("article"); card.className = `history-card${obs._pending ? " pending" : ""}`;
+    const main = document.createElement("div"); main.className = "history-main";
+    main.innerHTML = `<strong>${fmtDate(obs.observed_on)} — ${parcelLabel(parcel, { compact: true })} — ${trap?.code || "—"}</strong><div class="history-meta"><b>${obs.total_captured}</b> capturé${obs.total_captured > 1 ? "s" : ""}${campaignById(obs.campaign_id)?.protocol_type === "aphid" ? ` · ${identified} identifié${identified > 1 ? "s" : ""} · ${remaining} restant${remaining > 1 ? "s" : ""}` : ""}${obs.comment ? ` · ${escapeHtml(obs.comment)}` : ""}</div>`;
+    if (details.length) {
+      const detailWrap = document.createElement("div"); detailWrap.className = "history-details";
+      details.filter(d => Number(d.males||0)+Number(d.females||0)+Number(d.undetermined||0)>0).forEach(d => {
+        const s = speciesById(d.species_id); const pill = document.createElement("span"); pill.className = "detail-pill";
+        pill.textContent = `${s?.scientific_name || "Espèce"} : ${Number(d.males||0)+Number(d.females||0)+Number(d.undetermined||0)} (${d.males||0} M / ${d.females||0} F / ${d.undetermined||0} I)`;
+        detailWrap.appendChild(pill);
+      });
+      main.appendChild(detailWrap);
+    }
+    card.appendChild(main);
+    if (currentUser) {
+      const actions = document.createElement("div"); actions.className = "history-actions";
+      const edit = button("Modifier", "small-button", () => openObservationDialog(obs));
+      const archive = button("Archiver", "small-button danger", async () => {
+        const confirmed = await showSamConfirmation({
+          title: "Archiver ce relevé ?",
+          message: "Le relevé sera déplacé dans les Archives et pourra être restauré plus tard.",
+          confirmText: "Archiver",
+          mode: "archive"
+        });
+
+        if (!confirmed) return;
+
+        await archiveRecord(TABLES.observations, obs, true);
+        renderAll();
+      });
+      actions.append(edit, archive); card.appendChild(actions);
+    }
+    container.appendChild(card);
+  });
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));
+}
+
+
+function showSamConfirmation({
+  title = "Confirmer l’action",
+  message = "",
+  confirmText = "Confirmer",
+  mode = "danger"
+} = {}) {
+  const dialog = $("confirmDialog");
+  const titleEl = $("confirmDialogTitle");
+  const messageEl = $("confirmDialogMessage");
+  const confirmButton = $("confirmDialogConfirm");
+  const cancelButton = $("confirmDialogCancel");
+
+  if (!dialog || !titleEl || !messageEl || !confirmButton || !cancelButton) {
+    return Promise.resolve(false);
+  }
+
+  titleEl.textContent = title;
+  messageEl.textContent = message;
+  confirmButton.textContent = confirmText;
+
+  dialog.classList.toggle("archive-mode", mode === "archive");
+
+  return new Promise(resolve => {
+    let settled = false;
+
+    const finish = result => {
+      if (settled) return;
+      settled = true;
+
+      cancelButton.removeEventListener("click", onCancel);
+      confirmButton.removeEventListener("click", onConfirm);
+      dialog.removeEventListener("cancel", onNativeCancel);
+      dialog.removeEventListener("close", onClose);
+
+      if (dialog.open) dialog.close();
+      resolve(result);
+    };
+
+    const onCancel = () => finish(false);
+    const onConfirm = () => finish(true);
+    const onNativeCancel = event => {
+      event.preventDefault();
+      finish(false);
+    };
+    const onClose = () => {
+      if (!settled) finish(false);
+    };
+
+    cancelButton.addEventListener("click", onCancel);
+    confirmButton.addEventListener("click", onConfirm);
+    dialog.addEventListener("cancel", onNativeCancel);
+    dialog.addEventListener("close", onClose);
+
+    dialog.showModal();
+    cancelButton.focus();
+  });
+}
+
+function button(text, className, handler) {
+  const b = document.createElement("button"); b.type = "button"; b.className = className; b.textContent = text; b.addEventListener("click", handler); return b;
+}
+
+// -----------------------------------------------------------------------------
+// Gestion / archivage
+// -----------------------------------------------------------------------------
+async function archiveRecord(table, record, archived) {
+  const payload = {
+    ...record,
+    archived_at: archived ? new Date().toISOString() : null,
+    updated_at: new Date().toISOString()
+  };
+
+  if (table === TABLES.species) {
+    payload.active = !archived;
+  }
+
+  delete payload._pending;
+  await writeRecord(table, payload);
+}
+
+function renderManagementLists() {
+  renderCampaignList(); renderParcelList(); renderTrapList(); renderSpeciesList();
+}
+
+function renderCampaignList() {
+  const box = $("campaignManageList"); if (!box) return; box.innerHTML = "";
+  data.campaigns.slice().sort((a,b)=>b.year-a.year || a.name.localeCompare(b.name,"fr")).forEach(c => {
+    const item = managementItem(`${c.year} — ${c.name}`, `${c.pest_label} · ${c.protocol_type === "aphid" ? "protocole avancé" : "protocole simple"}`, c.archived_at);
+    item.actions.append(button("Modifier", "small-button", () => openCampaignDialog(c)), button(c.archived_at ? "Restaurer" : "Archiver", `small-button ${c.archived_at ? "restore" : "danger"}`, async()=>{await archiveRecord(TABLES.campaigns,c,!c.archived_at);renderAll();}));
+    box.appendChild(item.root);
+  });
+}
+
+function renderParcelList() {
+  const box = $("parcelManageList"); if (!box) return; box.innerHTML = "";
+  data.parcels.slice().sort((a,b)=>a.exploitation.localeCompare(b.exploitation,"fr")||a.name.localeCompare(b.name,"fr")).forEach(p => {
+    const item = managementItem(`${p.exploitation} — ${p.name}`, `${p.variety || ""} · ${fmtNumber(p.area_ha,2)} ha`, p.archived_at);
+    item.actions.append(button("Modifier","small-button",()=>openParcelDialog(p)),button(p.archived_at?"Restaurer":"Archiver",`small-button ${p.archived_at?"restore":"danger"}`,async()=>{await archiveRecord(TABLES.parcels,p,!p.archived_at);renderAll();}));
+    box.appendChild(item.root);
+  });
+}
+
+function renderTrapList() {
+  const box = $("trapManageList"); if (!box) return; box.innerHTML = "";
+  data.traps.slice().sort((a,b)=>String(a.code).localeCompare(String(b.code),"fr")).forEach(t => {
+    const p=parcelById(t.parcel_id), c=campaignById(t.campaign_id); const item=managementItem(`${p?.name||"—"} — ${t.code}`, `${c?.name||"—"} · ${t.trap_type||"Type non renseigné"}`,t.archived_at);
+    item.actions.append(button("Modifier","small-button",()=>openTrapDialog(t)),button("Événement","small-button",()=>openTrapEventDialog(t)),button(t.archived_at?"Restaurer":"Archiver",`small-button ${t.archived_at?"restore":"danger"}`,async()=>{await archiveRecord(TABLES.traps,t,!t.archived_at);renderAll();})); box.appendChild(item.root);
+  });
+}
+
+function renderSpeciesList() {
+  const box = $("speciesManageList");
+  if (!box) return;
+  box.innerHTML = "";
+
+  data.species
+    .slice()
+    .sort((a, b) => a.scientific_name.localeCompare(b.scientific_name, "fr"))
+    .forEach(species => {
+      const archived = Boolean(species.archived_at);
+      const item = managementItem(species.scientific_name, species.common_name || "", archived);
+
+      item.actions.append(
+        button("Modifier", "small-button", () => openSpeciesEditForm(species)),
+        button(
+          archived ? "Restaurer" : "Archiver",
+          `small-button ${archived ? "restore" : "danger"}`,
+          async () => {
+            await archiveRecord(TABLES.species, species, !archived);
+            renderAll();
+          }
+        )
+      );
+
+      box.appendChild(item.root);
+    });
+}
+
+function openArchivesDialog() {
+  renderArchiveLists();
+  $("archivesDialog").showModal();
+}
+
+async function permanentlyDeleteArchived(entityType, record, label) {
+  if (!navigator.onLine) {
+    alert("La suppression définitive nécessite une connexion internet.");
+    return;
+  }
+
+  const confirmed = await showSamConfirmation({
+    title: "Suppression définitive",
+    message: `Supprimer définitivement ${label} ?\n\nCette action est irréversible et peut aussi supprimer les données qui en dépendent.`,
+    confirmText: "Supprimer définitivement",
+    mode: "danger"
+  });
+
+  if (!confirmed) return;
+
+  const { error } = await db.rpc("sam_piegeage_delete_archived", {
+    p_entity: entityType,
+    p_id: record.id
+  });
+
+  if (error) {
+    alert(`Suppression impossible : ${error.message}`);
+    return;
+  }
+
+  await loadData(true);
+  renderArchiveLists();
+}
+
+function appendArchiveActions(item, table, record, entityType, label) {
+  item.actions.append(
+    button("Restaurer", "small-button restore", async () => {
+      await archiveRecord(table, record, false);
+      renderAll();
+      renderArchiveLists();
+    }),
+    button("Supprimer définitivement", "small-button danger", async () => {
+      await permanentlyDeleteArchived(entityType, record, label);
+    })
+  );
+}
+
+function renderArchiveLists() {
+  const campaignBox = $("archivedCampaignList");
+  const parcelBox = $("archivedParcelList");
+  const trapBox = $("archivedTrapList");
+  const speciesBox = $("archivedSpeciesList");
+  const obsBox = $("archivedObservationList");
+  const intBox = $("archivedInterventionList");
+  const eventBox = $("archivedTrapEventList");
+
+  [campaignBox, parcelBox, trapBox, speciesBox, obsBox, intBox, eventBox].forEach(box => {
+    if (box) box.innerHTML = "";
+  });
+
+  const archivedCampaigns = data.campaigns
+    .filter(c => c.archived_at)
+    .sort((a, b) => b.year - a.year || a.name.localeCompare(b.name, "fr"));
+
+  if (!archivedCampaigns.length) campaignBox.innerHTML = '<div class="history-empty">Aucune campagne archivée.</div>';
+  archivedCampaigns.forEach(campaign => {
+    const item = managementItem(
+      `${campaign.year} — ${campaign.name}`,
+      `${campaign.pest_label} · ${campaign.protocol_type === "aphid" ? "protocole avancé" : "protocole simple"}`,
+      true
+    );
+    appendArchiveActions(item, TABLES.campaigns, campaign, "campaign", `la campagne « ${campaign.name} »`);
+    campaignBox.appendChild(item.root);
+  });
+
+  const archivedParcels = data.parcels
+    .filter(parcel => parcel.archived_at)
+    .sort((a, b) => a.exploitation.localeCompare(b.exploitation, "fr") || a.name.localeCompare(b.name, "fr"));
+
+  if (!archivedParcels.length) parcelBox.innerHTML = '<div class="history-empty">Aucune parcelle archivée.</div>';
+  archivedParcels.forEach(parcel => {
+    const item = managementItem(
+      `${parcel.exploitation} — ${parcel.name}`,
+      `${parcel.variety || ""} · ${fmtNumber(parcel.area_ha, 2)} ha`,
+      true
+    );
+    appendArchiveActions(item, TABLES.parcels, parcel, "parcel", `la parcelle « ${parcel.name} »`);
+    parcelBox.appendChild(item.root);
+  });
+
+  const archivedTraps = data.traps
+    .filter(trap => trap.archived_at)
+    .sort((a, b) => String(a.code).localeCompare(String(b.code), "fr"));
+
+  if (!archivedTraps.length) trapBox.innerHTML = '<div class="history-empty">Aucun piège archivé.</div>';
+  archivedTraps.forEach(trap => {
+    const parcel = parcelById(trap.parcel_id);
+    const campaign = campaignById(trap.campaign_id);
+    const item = managementItem(
+      `${parcel?.name || "—"} — ${trap.code}`,
+      `${campaign?.name || "—"} · ${trap.trap_type || "Type non renseigné"}`,
+      true
+    );
+    appendArchiveActions(item, TABLES.traps, trap, "trap", `le piège « ${trap.code} »`);
+    trapBox.appendChild(item.root);
+  });
+
+  const archivedSpecies = data.species
+    .filter(species => species.archived_at || species.active === false)
+    .sort((a, b) => a.scientific_name.localeCompare(b.scientific_name, "fr"));
+
+  if (!archivedSpecies.length) speciesBox.innerHTML = '<div class="history-empty">Aucune espèce archivée.</div>';
+  archivedSpecies.forEach(species => {
+    const item = managementItem(species.scientific_name, species.common_name || "", true);
+    appendArchiveActions(item, TABLES.species, species, "species", `l’espèce « ${species.scientific_name} »`);
+    speciesBox.appendChild(item.root);
+  });
+
+  const archivedObs = data.observations
+    .filter(obs => obs.archived_at)
+    .sort((a, b) => b.observed_on.localeCompare(a.observed_on));
+
+  if (!archivedObs.length) obsBox.innerHTML = '<div class="history-empty">Aucun relevé archivé.</div>';
+  archivedObs.forEach(obs => {
+    const trap = trapById(obs.trap_id);
+    const parcel = parcelById(trap?.parcel_id);
+    const item = managementItem(
+      `${fmtDate(obs.observed_on)} — ${parcel?.name || "—"} — ${trap?.code || "—"}`,
+      `${obs.total_captured} captures`,
+      true
+    );
+    appendArchiveActions(item, TABLES.observations, obs, "observation", `le relevé du ${fmtDate(obs.observed_on)}`);
+    obsBox.appendChild(item.root);
+  });
+
+  const archivedInts = data.interventions
+    .filter(intervention => intervention.archived_at)
+    .sort((a, b) => b.intervention_date.localeCompare(a.intervention_date));
+
+  if (!archivedInts.length) intBox.innerHTML = '<div class="history-empty">Aucune intervention archivée.</div>';
+  archivedInts.forEach(intervention => {
+    const item = managementItem(
+      `${fmtDate(intervention.intervention_date)} — ${intervention.intervention_type}`,
+      intervention.product || "",
+      true
+    );
+    appendArchiveActions(item, TABLES.interventions, intervention, "intervention", `l’intervention du ${fmtDate(intervention.intervention_date)}`);
+    intBox.appendChild(item.root);
+  });
+
+  const archivedEvents = data.trapEvents
+    .filter(event => event.archived_at)
+    .sort((a, b) => b.event_date.localeCompare(a.event_date));
+
+  if (!archivedEvents.length) eventBox.innerHTML = '<div class="history-empty">Aucun événement de piège archivé.</div>';
+  archivedEvents.forEach(event => {
+    const trap = trapById(event.trap_id);
+    const item = managementItem(
+      `${fmtDate(event.event_date)} — ${trap?.code || "—"}`,
+      event.label || event.event_type,
+      true
+    );
+    appendArchiveActions(item, TABLES.trapEvents, event, "trap_event", `l’événement du ${fmtDate(event.event_date)}`);
+    eventBox.appendChild(item.root);
+  });
+}
+
+function managementItem(title, subtitle, archived) {
+  const root=document.createElement("div");root.className=`management-item${archived?" archived":""}`;const info=document.createElement("div");info.className="management-info";info.innerHTML=`<strong>${escapeHtml(title)}</strong><span>${escapeHtml(subtitle)}${archived?" · ARCHIVÉ":""}</span>`;const actions=document.createElement("div");actions.className="management-actions";root.append(info,actions);return{root,actions};
+}
+
+// -----------------------------------------------------------------------------
+// Campagnes
+// -----------------------------------------------------------------------------
+function renderCampaignSpeciesChoices(selectedIds = []) {
+  const box=$("campaignSpeciesChoices");box.innerHTML="";
+  data.species.filter(s=>s.active!==false && !s.archived_at).forEach(s=>{const label=document.createElement("label");label.className="checkbox-card";label.innerHTML=`<input type="checkbox" value="${s.id}" ${selectedIds.includes(s.id)?"checked":""}> <span><b>${escapeHtml(s.scientific_name)}</b>${s.common_name?`<br><small>${escapeHtml(s.common_name)}</small>`:""}</span>`;box.appendChild(label);});
+}
+
+function toggleCampaignSpeciesSection(){const aphid=$("campaignProtocol").value==="aphid";$("campaignSpeciesSection").classList.toggle("hidden",!aphid);if(aphid&&!$("campaignId").value&&!$("campaignSpeciesChoices").querySelector("input:checked"))$("campaignSpeciesChoices").querySelectorAll("input").forEach(input=>input.checked=true);}
+
+function openCampaignDialog(campaign=null){$("campaignForm").reset();$("campaignId").value=campaign?.id||"";$("campaignName").value=campaign?.name||"";$("campaignYear").value=campaign?.year||new Date().getFullYear();$("campaignPest").value=campaign?.pest_label||"";$("campaignProtocol").value=campaign?.protocol_type||"simple";$("campaignStart").value=campaign?.start_date||"";$("campaignEnd").value=campaign?.end_date||"";const selected=campaign?data.campaignSpecies.filter(l=>l.campaign_id===campaign.id&&l.active!==false).map(l=>l.species_id):[];renderCampaignSpeciesChoices(selected);toggleCampaignSpeciesSection();setMessage($("campaignMessage"));renderCampaignList();$("campaignDialog").showModal();}
+
+async function saveCampaign(event){event.preventDefault();const existing=campaignById($("campaignId").value);const id=existing?.id||uuid();const payload={id,name:$("campaignName").value.trim(),year:Number($("campaignYear").value),pest_label:$("campaignPest").value.trim(),protocol_type:$("campaignProtocol").value,start_date:$("campaignStart").value||null,end_date:$("campaignEnd").value||null,legacy_key:existing?.legacy_key||null,archived_at:existing?.archived_at||null,created_by:existing?.created_by||currentUser.id,created_at:existing?.created_at||new Date().toISOString(),updated_at:new Date().toISOString()};
+  try{await writeRecord(TABLES.campaigns,payload);if(payload.protocol_type==="aphid"){const selected=[...$("campaignSpeciesChoices").querySelectorAll('input:checked')].map(i=>i.value);for(const s of data.species){let link=data.campaignSpecies.find(l=>l.campaign_id===id&&l.species_id===s.id);if(link){await writeRecord(TABLES.campaignSpecies,{...link,active:selected.includes(s.id)});}else if(selected.includes(s.id)){await writeRecord(TABLES.campaignSpecies,{id:uuid(),campaign_id:id,species_id:s.id,active:true,created_at:new Date().toISOString()});}}}setMessage($("campaignMessage"),navigator.onLine?"Campagne enregistrée.":"Campagne enregistrée hors connexion.");renderAll();renderCampaignList();}catch(error){setMessage($("campaignMessage"),error.message||"Enregistrement impossible.",true);}}
+
+// -----------------------------------------------------------------------------
+// Parcelles
+// -----------------------------------------------------------------------------
+function openParcelDialog(parcel=null){$("parcelForm").reset();$("parcelId").value=parcel?.id||"";$("parcelFarm").value=parcel?.exploitation||"";$("parcelName").value=parcel?.name||"";$("parcelVariety").value=parcel?.variety||"";$("parcelArea").value=parcel?.area_ha??"";setMessage($("parcelMessage"));renderParcelList();$("parcelDialog").showModal();}
+async function saveParcel(event) {
+  event.preventDefault();
+
+  const existing = parcelById($("parcelId").value);
+
+  const payload = {
+    id: existing?.id || uuid(),
+    exploitation: $("parcelFarm").value.trim(),
+    name: $("parcelName").value.trim(),
+    variety: $("parcelVariety").value.trim(),
+    area_ha: Number($("parcelArea").value),
+    created_by: existing?.created_by || currentUser.id,
+    created_at: existing?.created_at || new Date().toISOString(),
+    archived_at: existing?.archived_at || null,
+    updated_at: new Date().toISOString()
+  };
+
+  const exactDuplicate = data.parcels.some(parcel =>
+    parcel.id !== payload.id &&
+    !parcel.archived_at &&
+    sameParcelIdentity(parcel, payload)
+  );
+
+  if (exactDuplicate) {
+    setMessage(
+      $("parcelMessage"),
+      "Une parcelle avec exactement le même nom, la même exploitation, la même variété et la même surface existe déjà.",
+      true
+    );
+    return;
+  }
+
+  try {
+    await writeRecord(TABLES.parcels, payload);
+    setMessage(
+      $("parcelMessage"),
+      navigator.onLine ? "Parcelle enregistrée." : "Parcelle enregistrée hors connexion."
+    );
+    renderAll();
+    renderParcelList();
+  } catch (error) {
+    setMessage($("parcelMessage"), error.message || "Enregistrement impossible.", true);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Pièges et événements
+// -----------------------------------------------------------------------------
+function openTrapDialog(trap=null){$("trapForm").reset();populateAdminSelects();$("trapId").value=trap?.id||"";$("trapCampaign").value=trap?.campaign_id||$("campaignFilter").value;populateTrapParcelSelect();$("trapParcel").value=trap?.parcel_id||"";$("trapCode").value=trap?.code||"";$("trapType").value=trap?.trap_type||"";$("trapRow").value=trap?.row_ref||"";$("trapPosition").value=trap?.position||"";$("trapInstalled").value=trap?.installed_on||todayISO();$("trapAttractant").value=trap?.attractant||"";$("trapComment").value=trap?.comment||"";setMessage($("trapMessage"));renderTrapList();$("trapDialog").showModal();}
+async function saveTrap(event){event.preventDefault();const existing=data.traps.find(t=>t.id===$("trapId").value);const payload={id:existing?.id||uuid(),campaign_id:$("trapCampaign").value,parcel_id:$("trapParcel").value,code:$("trapCode").value.trim(),trap_type:$("trapType").value.trim()||null,row_ref:$("trapRow").value.trim()||null,position:$("trapPosition").value.trim()||null,installed_on:$("trapInstalled").value||null,removed_on:existing?.removed_on||null,attractant:$("trapAttractant").value.trim()||null,comment:$("trapComment").value.trim()||null,archived_at:existing?.archived_at||null,created_by:existing?.created_by||currentUser.id,created_at:existing?.created_at||new Date().toISOString(),updated_at:new Date().toISOString()};if(existing&&existing.latitude!=null&&existing.longitude!=null){payload.latitude=existing.latitude;payload.longitude=existing.longitude;}try{await writeRecord(TABLES.traps,payload);let link=data.campaignParcels.find(l=>l.campaign_id===payload.campaign_id&&l.parcel_id===payload.parcel_id);if(!link)await writeRecord(TABLES.campaignParcels,{id:uuid(),campaign_id:payload.campaign_id,parcel_id:payload.parcel_id,modality:null,created_at:new Date().toISOString()});if(!existing&&payload.installed_on)await writeRecord(TABLES.trapEvents,{id:uuid(),trap_id:payload.id,event_date:payload.installed_on,event_type:"installation",label:"Installation du piège",comment:payload.comment,archived_at:null,created_by:currentUser.id,created_at:new Date().toISOString(),updated_at:new Date().toISOString()});setMessage($("trapMessage"),navigator.onLine?"Piège enregistré.":"Piège enregistré hors connexion.");renderAll();renderTrapList();}catch(error){setMessage($("trapMessage"),error.message||"Enregistrement impossible.",true);}}
+function openTrapEventDialog(trap=null){populateEventTrapSelect();if(trap)$("eventTrap").value=trap.id;$("eventDate").value=todayISO();$("eventType").value="replacement";$("eventLabel").value="";$("eventComment").value="";setMessage($("eventMessage"));$("trapEventDialog").showModal();}
+async function saveTrapEvent(event){event.preventDefault();const payload={id:uuid(),trap_id:$("eventTrap").value,event_date:$("eventDate").value,event_type:$("eventType").value,label:$("eventLabel").value.trim()||null,comment:$("eventComment").value.trim()||null,archived_at:null,created_by:currentUser.id,created_at:new Date().toISOString(),updated_at:new Date().toISOString()};try{await writeRecord(TABLES.trapEvents,payload);if(payload.event_type==="replacement"){const trap=trapById(payload.trap_id);if(trap)await writeRecord(TABLES.traps,{...trap,installed_on:payload.event_date,updated_at:new Date().toISOString()});}setMessage($("eventMessage"),navigator.onLine?"Événement enregistré.":"Événement enregistré hors connexion.");renderAll();}catch(error){setMessage($("eventMessage"),error.message||"Enregistrement impossible.",true);}}
+
+
+// -----------------------------------------------------------------------------
+// Import Excel des relevés
+// -----------------------------------------------------------------------------
+function normalizeParcelName(value) {
+  return String(value ?? "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase("fr-FR");
+}
+
+function parcelNameCandidates(value) {
+  const raw = String(value ?? "").trim().replace(/\s+/g, " ");
+  const normalized = normalizeParcelName(raw);
+  const withoutPrefix = normalizeParcelName(raw.replace(/^parcelle\s+/i, ""));
+  return [...new Set([normalized, withoutPrefix].filter(Boolean))];
+}
+
+function parseExcelDateValue(value, campaignYear) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, "0");
+    const day = String(value.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  if (typeof value === "number" && window.XLSX?.SSF?.parse_date_code) {
+    const parsed = XLSX.SSF.parse_date_code(value);
+    if (parsed?.y && parsed?.m && parsed?.d) {
+      const year = parsed.y < 1900 ? Number(campaignYear) : parsed.y;
+      return `${String(year).padStart(4, "0")}-${String(parsed.m).padStart(2, "0")}-${String(parsed.d).padStart(2, "0")}`;
+    }
+  }
+
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+
+  let match = text.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  if (match) {
+    const [, y, m, d] = match;
+    return validIsoParts(Number(y), Number(m), Number(d));
+  }
+
+  match = text.match(/^(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?$/);
+  if (match) {
+    let [, d, m, y] = match;
+    let year = y ? Number(y) : Number(campaignYear);
+    if (year < 100) year += 2000;
+    return validIsoParts(year, Number(m), Number(d));
+  }
+
+  return null;
+}
+
+function validIsoParts(year, month, day) {
+  if (!year || month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const date = new Date(year, month - 1, day);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) return null;
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function resetExcelImport() {
+  excelImportPlan = null;
+
+  const input = $("observationExcelFile");
+  if (input) input.value = "";
+
+  const preview = $("excelImportPreview");
+  if (preview) {
+    preview.innerHTML = "";
+    preview.classList.add("hidden");
+  }
+
+  const confirmButton = $("confirmExcelImportButton");
+  const cancelButton = $("cancelExcelImportButton");
+
+  if (confirmButton) {
+    confirmButton.classList.add("hidden");
+    confirmButton.disabled = true;
+  }
+  if (cancelButton) cancelButton.classList.add("hidden");
+}
+
+function findParcelForExcelName(campaignId, cellValue) {
+  const raw = String(cellValue ?? "").trim();
+  const parts = raw.split("|").map(part => part.trim());
+  const nameCandidates = parcelNameCandidates(parts[0]);
+  const parcels = parcelsForCampaign(campaignId);
+
+  let matches = parcels.filter(parcel =>
+    nameCandidates.includes(normalizeParcelName(parcel.name))
+  );
+
+  // Syntaxe facultative en cas d'homonymes :
+  // Nom | Exploitation | Variété | Surface
+  if (parts.length > 1 && parts[1]) {
+    matches = matches.filter(parcel =>
+      normalizeParcelName(parcel.exploitation) === normalizeParcelName(parts[1])
+    );
+  }
+
+  if (parts.length > 2 && parts[2]) {
+    matches = matches.filter(parcel =>
+      normalizeParcelName(parcel.variety) === normalizeParcelName(parts[2])
+    );
+  }
+
+  if (parts.length > 3 && parts[3]) {
+    const expectedArea = Number(String(parts[3]).replace(",", ".").replace(/\s*ha\s*$/i, ""));
+    if (Number.isFinite(expectedArea)) {
+      matches = matches.filter(parcel => Number(parcel.area_ha) === expectedArea);
+    }
+  }
+
+  if (matches.length === 1) {
+    return { parcel: matches[0], error: null };
+  }
+
+  if (!matches.length) {
+    return {
+      parcel: null,
+      error: `parcelle « ${raw} » introuvable dans la campagne.`
+    };
+  }
+
+  const examples = matches
+    .slice(0, 3)
+    .map(parcel => `${parcel.name} | ${parcel.exploitation} | ${parcel.variety || ""} | ${fmtNumber(parcel.area_ha, 2)}`)
+    .join(" ; ");
+
+  return {
+    parcel: null,
+    error:
+      `plusieurs parcelles portent le nom « ${parts[0]} ». ` +
+      `Dans la première colonne de l’Excel, précise-la sous la forme ` +
+      `« Nom | Exploitation | Variété | Surface ». Exemple : ${examples}.`
+  };
+}
+
+function resolveTrapForImportedParcel(campaignId, parcel) {
+  const traps = trapsForCampaign(campaignId, parcel.id);
+
+  // Si la parcelle affichée dans la fenêtre Relevé est celle de la ligne,
+  // le piège sélectionné manuellement est prioritaire.
+  const selectedParcelId = $("observationParcel").value;
+  const selectedTrapId = $("observationTrap").value;
+
+  if (
+    selectedParcelId === parcel.id &&
+    selectedTrapId &&
+    traps.some(trap => trap.id === selectedTrapId)
+  ) {
+    return { trap: trapById(selectedTrapId), error: null };
+  }
+
+  if (traps.length === 1) return { trap: traps[0], error: null };
+
+  if (!traps.length) {
+    return {
+      trap: null,
+      error: `La parcelle « ${parcel.name} » n’a aucun piège actif dans cette campagne.`
+    };
+  }
+
+  return {
+    trap: null,
+    error: `La parcelle « ${parcel.name} » possède ${traps.length} pièges actifs. Sélectionne cette parcelle et le piège à utiliser, puis relance l’analyse.`
+  };
+}
+
+function renderExcelImportPreview(plan) {
+  const box = $("excelImportPreview");
+  const confirmButton = $("confirmExcelImportButton");
+  const cancelButton = $("cancelExcelImportButton");
+
+  if (!box || !confirmButton || !cancelButton) return;
+
+  const parcelCount = new Set(plan.records.map(record => record.parcel_id)).size;
+
+  box.innerHTML = `
+    <div class="excel-import-summary">
+      <span class="excel-import-badge good">${parcelCount} parcelle${parcelCount > 1 ? "s" : ""} reconnue${parcelCount > 1 ? "s" : ""}</span>
+      <span class="excel-import-badge good">${plan.records.length} relevé${plan.records.length > 1 ? "s" : ""} à importer</span>
+      ${plan.duplicates.length ? `<span class="excel-import-badge warning">${plan.duplicates.length} doublon${plan.duplicates.length > 1 ? "s" : ""} ignoré${plan.duplicates.length > 1 ? "s" : ""}</span>` : ""}
+      ${plan.errors.length ? `<span class="excel-import-badge error">${plan.errors.length} erreur${plan.errors.length > 1 ? "s" : ""}</span>` : ""}
+    </div>
+    ${plan.warnings.length ? `<ul class="excel-import-warnings">${plan.warnings.slice(0, 12).map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}
+    ${plan.errors.length ? `<ul class="excel-import-errors">${plan.errors.slice(0, 15).map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}
+  `;
+
+  box.classList.remove("hidden");
+  cancelButton.classList.remove("hidden");
+  confirmButton.classList.remove("hidden");
+  confirmButton.disabled = Boolean(plan.errors.length) || !plan.records.length;
+}
+
+async function analyzeObservationExcel(file) {
+  resetExcelImport();
+  try { await ctx.vendor.xlsx(); } catch { /* message ci-dessous */ }
+
+  if (!file) return;
+  if (!window.XLSX) {
+    setMessage($("observationMessage"), "Bibliothèque Excel indisponible.", true);
+    return;
+  }
+
+  const campaign = campaignById($("observationCampaign").value);
+  if (!campaign) {
+    setMessage($("observationMessage"), "Sélectionne d’abord une campagne.", true);
+    return;
+  }
+
+  try {
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
+    const firstSheetName = workbook.SheetNames[0];
+
+    if (!firstSheetName) throw new Error("Le fichier Excel ne contient aucune feuille.");
+
+    const sheet = workbook.Sheets[firstSheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet, {
+      header: 1,
+      raw: true,
+      defval: null
+    });
+
+    if (!rows.length || rows[0].length < 2) {
+      throw new Error("Format non reconnu : la première ligne doit contenir « Dates » puis les dates des relevés.");
+    }
+
+    const header = rows[0];
+    const dateColumns = [];
+    const errors = [];
+    const warnings = [];
+    const duplicates = [];
+    const records = [];
+    const fileKeys = new Set();
+
+    for (let column = 1; column < header.length; column++) {
+      const cell = header[column];
+      if (cell === null || cell === "") continue;
+
+      const iso = parseExcelDateValue(cell, campaign.year);
+      if (!iso) {
+        errors.push(`Date non reconnue en colonne ${column + 1} : « ${String(cell)} ».`);
+        continue;
+      }
+
+      dateColumns.push({ column, date: iso });
+    }
+
+    if (!dateColumns.length) {
+      errors.push("Aucune date exploitable n’a été trouvée sur la première ligne.");
+    }
+
+    const existingKeys = new Set(
+      activeRows(data.observations)
+        .filter(observation => observation.campaign_id === campaign.id)
+        .map(observation => `${observation.trap_id}|${observation.observed_on}`)
+    );
+
+    for (let rowIndex = 1; rowIndex < rows.length; rowIndex++) {
+      const row = rows[rowIndex];
+      const parcelCell = row?.[0];
+
+      if (parcelCell === null || String(parcelCell ?? "").trim() === "") continue;
+
+      const parcelMatch = findParcelForExcelName(campaign.id, parcelCell);
+
+      if (parcelMatch.error || !parcelMatch.parcel) {
+        errors.push(`Ligne ${rowIndex + 1} : ${parcelMatch.error}`);
+        continue;
+      }
+
+      const parcel = parcelMatch.parcel;
+      const resolved = resolveTrapForImportedParcel(campaign.id, parcel);
+      if (resolved.error) {
+        errors.push(`Ligne ${rowIndex + 1} : ${resolved.error}`);
+        continue;
+      }
+
+      const trap = resolved.trap;
+
+      for (const { column, date } of dateColumns) {
+        const rawValue = row?.[column];
+
+        if (rawValue === null || rawValue === undefined || String(rawValue).trim() === "") {
+          continue;
+        }
+
+        const numeric = Number(
+          typeof rawValue === "string"
+            ? rawValue.replace(",", ".").trim()
+            : rawValue
+        );
+
+        if (!Number.isFinite(numeric) || numeric < 0 || !Number.isInteger(numeric)) {
+          errors.push(
+            `Ligne ${rowIndex + 1}, ${fmtDate(date)} : « ${String(rawValue)} » n’est pas un nombre entier de captures valide.`
+          );
+          continue;
+        }
+
+        const key = `${trap.id}|${date}`;
+
+        if (existingKeys.has(key) || fileKeys.has(key)) {
+          duplicates.push(`${parcel.name} — ${fmtDate(date)}`);
+          continue;
+        }
+
+        fileKeys.add(key);
+
+        records.push({
+          id: uuid(),
+          campaign_id: campaign.id,
+          parcel_id: parcel.id,
+          trap_id: trap.id,
+          observed_on: date,
+          total_captured: numeric,
+          identification_status: campaign.protocol_type === "aphid" ? "not_started" : "not_applicable",
+          comment: `Import Excel — ${file.name}`,
+          legacy_source_id: null,
+          archived_at: null,
+          created_by: currentUser.id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+      }
+    }
+
+    if (duplicates.length) {
+      warnings.push(
+        `${duplicates.length} relevé${duplicates.length > 1 ? "s" : ""} existe${duplicates.length > 1 ? "nt" : ""} déjà pour le même piège et la même date : ${duplicates.length > 1 ? "ils sont" : "il est"} ignoré${duplicates.length > 1 ? "s" : ""}.`
+      );
+    }
+
+    excelImportPlan = {
+      fileName: file.name,
+      campaignId: campaign.id,
+      records,
+      errors,
+      warnings,
+      duplicates
+    };
+
+    renderExcelImportPreview(excelImportPlan);
+    setMessage($("observationMessage"));
+  } catch (error) {
+    resetExcelImport();
+    setMessage(
+      $("observationMessage"),
+      error?.message || "Impossible de lire le fichier Excel.",
+      true
+    );
+  }
+}
+
+async function confirmObservationExcelImport() {
+  const plan = excelImportPlan;
+
+  if (!plan || plan.errors.length || !plan.records.length) return;
+
+  const button = $("confirmExcelImportButton");
+  const oldText = button.textContent;
+  button.disabled = true;
+  button.textContent = "Import en cours…";
+
+  let imported = 0;
+
+  try {
+    for (const record of plan.records) {
+      const payload = { ...record };
+      delete payload.parcel_id; // champ d’aide uniquement pour l’aperçu
+      await writeRecord(TABLES.observations, payload);
+      imported++;
+    }
+
+    const campaign = campaignById(plan.campaignId);
+
+    $("campaignFilter").value = plan.campaignId;
+    populateParcelFilter();
+    populateAdminSelects();
+    renderAll();
+
+    setMessage(
+      $("observationMessage"),
+      navigator.onLine
+        ? `${imported} relevé${imported > 1 ? "s" : ""} importé${imported > 1 ? "s" : ""} depuis Excel.`
+        : `${imported} relevé${imported > 1 ? "s" : ""} importé${imported > 1 ? "s" : ""} hors connexion. Synchronisation automatique au retour du réseau.`
+    );
+
+    resetExcelImport();
+
+    if (campaign) {
+      $("observationCampaign").value = campaign.id;
+    }
+  } catch (error) {
+    setMessage(
+      $("observationMessage"),
+      `Import interrompu après ${imported} relevé${imported > 1 ? "s" : ""} : ${error?.message || "erreur inconnue"}`,
+      true
+    );
+  } finally {
+    button.textContent = oldText;
+    button.disabled = false;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Export SVG du graphique actuellement affiché
+// -----------------------------------------------------------------------------
+function escapeXml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function exportChartSvg() {
+  if (!chart || !chart.data?.labels?.length || !chart.data?.datasets?.length) {
+    setMessage($("globalMessage"), "Aucun graphique à exporter.", true);
+    return;
+  }
+
+  const labels = chart.data.labels.map(String);
+  const datasets = chart.data.datasets || [];
+  const eventLines = chart.options?.plugins?.samEvents?.events || [];
+  const title = $("chartTitle")?.textContent || "SAM Piégeage";
+  const summary = $("campaignSummary")?.textContent || "";
+
+  const width = 1400;
+  const height = 780;
+  const margin = { left: 92, right: 42, top: 118, bottom: 150 };
+  const plotWidth = width - margin.left - margin.right;
+  const plotHeight = height - margin.top - margin.bottom;
+
+  const palette = [
+    "#d31145", "#31688e", "#2e8b57", "#a56a00",
+    "#744f9c", "#008c95", "#b04a3a", "#58636d",
+    "#7a5195", "#ef5675", "#ffa600"
+  ];
+
+  const values = datasets.flatMap(dataset =>
+    (dataset.data || [])
+      .filter(value => value !== null && value !== undefined && Number.isFinite(Number(value)))
+      .map(Number)
+  );
+
+  const rawMax = values.length ? Math.max(...values) : 0;
+  const yMax = rawMax <= 0 ? 1 : Math.max(1, Math.ceil(rawMax * 1.1));
+  const yTicks = 5;
+
+  const xForIndex = index =>
+    labels.length <= 1
+      ? margin.left + plotWidth / 2
+      : margin.left + (index / (labels.length - 1)) * plotWidth;
+
+  const yForValue = value =>
+    margin.top + plotHeight - (Number(value) / yMax) * plotHeight;
+
+  let svg = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+  svg += `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`;
+  svg += `<rect width="100%" height="100%" fill="#ffffff"/>`;
+  svg += `<style>
+    text{font-family:Arial,Helvetica,sans-serif;fill:#202832}
+    .muted{fill:#66717c}
+    .grid{stroke:#e6ebee;stroke-width:1}
+    .axis{stroke:#87919a;stroke-width:1.2}
+  </style>`;
+
+  svg += `<text x="${margin.left}" y="42" font-size="26" font-weight="700">${escapeXml(title)}</text>`;
+  if (summary) {
+    svg += `<text x="${margin.left}" y="69" font-size="14" class="muted">${escapeXml(summary)}</text>`;
+  }
+
+  // Grille et axe Y.
+  for (let tick = 0; tick <= yTicks; tick++) {
+    const value = (yMax / yTicks) * tick;
+    const y = yForValue(value);
+    svg += `<line class="grid" x1="${margin.left}" y1="${y}" x2="${margin.left + plotWidth}" y2="${y}"/>`;
+    svg += `<text x="${margin.left - 12}" y="${y + 5}" text-anchor="end" font-size="12" class="muted">${escapeXml(fmtNumber(value, value < 10 ? 1 : 0))}</text>`;
+  }
+
+  svg += `<line class="axis" x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${margin.top + plotHeight}"/>`;
+  svg += `<line class="axis" x1="${margin.left}" y1="${margin.top + plotHeight}" x2="${margin.left + plotWidth}" y2="${margin.top + plotHeight}"/>`;
+
+  const unitLabel = $("unitFilter")?.value === "per_day" ? "captures / jour" : "captures";
+  svg += `<text x="26" y="${margin.top + plotHeight / 2}" font-size="13" class="muted" transform="rotate(-90 26 ${margin.top + plotHeight / 2})" text-anchor="middle">${escapeXml(unitLabel)}</text>`;
+
+  // Interventions / événements à leur date visible.
+  eventLines.forEach(event => {
+    const index = labels.indexOf(String(event.date));
+    if (index < 0) return;
+
+    const x = xForIndex(index);
+
+    svg += `<line x1="${x}" y1="${margin.top}" x2="${x}" y2="${margin.top + plotHeight}" stroke="#c99214" stroke-width="1.5" stroke-dasharray="6 5" opacity=".9"/>`;
+
+    if (event.kind === "intervention" && event.label) {
+      let anchor = "middle";
+      let textX = x;
+
+      if (x < margin.left + 120) {
+        anchor = "start";
+        textX = x + 4;
+      } else if (x > margin.left + plotWidth - 120) {
+        anchor = "end";
+        textX = x - 4;
+      }
+
+      svg += `<text x="${textX}" y="${margin.top - 10}" text-anchor="${anchor}" font-size="12" font-weight="700" fill="#8c5a11">${escapeXml(event.label)}</text>`;
+    }
+  });
+
+  // Séries.
+  datasets.forEach((dataset, datasetIndex) => {
+    const color = palette[datasetIndex % palette.length];
+    const points = [];
+
+    (dataset.data || []).forEach((value, index) => {
+      if (value === null || value === undefined || !Number.isFinite(Number(value))) return;
+      points.push({
+        x: xForIndex(index),
+        y: yForValue(value),
+        value: Number(value)
+      });
+    });
+
+    if (points.length) {
+      svg += `<polyline fill="none" stroke="${color}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" points="${points.map(point => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(" ")}"/>`;
+      points.forEach(point => {
+        svg += `<circle cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="3.5" fill="${color}"/>`;
+      });
+    }
+  });
+
+  // Libellés X : au maximum ~14 pour rester lisibles.
+  const xStep = Math.max(1, Math.ceil(labels.length / 14));
+  labels.forEach((label, index) => {
+    if (index % xStep !== 0 && index !== labels.length - 1) return;
+    const x = xForIndex(index);
+    const y = margin.top + plotHeight + 22;
+    svg += `<text x="${x}" y="${y}" font-size="11" class="muted" text-anchor="end" transform="rotate(-45 ${x} ${y})">${escapeXml(label)}</text>`;
+  });
+
+  // Légende des courbes.
+  let legendX = margin.left;
+  let legendY = height - 72;
+  datasets.forEach((dataset, index) => {
+    const color = palette[index % palette.length];
+    const label = String(dataset.label || `Série ${index + 1}`);
+    const estimated = Math.min(300, 34 + label.length * 7);
+
+    if (legendX + estimated > width - margin.right) {
+      legendX = margin.left;
+      legendY += 25;
+    }
+
+    svg += `<line x1="${legendX}" y1="${legendY - 4}" x2="${legendX + 20}" y2="${legendY - 4}" stroke="${color}" stroke-width="3"/>`;
+    svg += `<circle cx="${legendX + 10}" cy="${legendY - 4}" r="3" fill="${color}"/>`;
+    svg += `<text x="${legendX + 27}" y="${legendY}" font-size="12">${escapeXml(label)}</text>`;
+    legendX += estimated;
+  });
+
+  // Légende des interventions.
+  if (eventLines.length) {
+    svg += `<line x1="${margin.left}" y1="${height - 28}" x2="${margin.left + 20}" y2="${height - 28}" stroke="#8c5a11" stroke-width="1.5" stroke-dasharray="6 5"/>`;
+    svg += `<text x="${margin.left + 28}" y="${height - 24}" font-size="12" class="muted">Repère d’intervention / événement de piège</text>`;
+  }
+
+  svg += `</svg>`;
+
+  const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  const campaign = campaignById($("campaignFilter")?.value);
+
+  anchor.href = url;
+  anchor.download = `SAM_Piegeage_${slugify(campaign?.name || "graphique")}_${slugify(title)}.svg`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+// -----------------------------------------------------------------------------
+// Relevés / identification
+// -----------------------------------------------------------------------------
+function renderObservationSpeciesRows(existingDetails=[]){const campaign=campaignById($("observationCampaign")?.value);const section=$("aphidDetailSection");const box=$("aphidSpeciesRows");if(!campaign||campaign.protocol_type!=="aphid"){section.classList.add("hidden");box.innerHTML="";return;}section.classList.remove("hidden");box.innerHTML="";campaignSpecies(campaign.id).forEach(s=>{const d=existingDetails.find(x=>x.species_id===s.id);const row=document.createElement("div");row.className="species-detail-row";row.dataset.speciesId=s.id;row.innerHTML=`<div class="species-name"><strong>${escapeHtml(s.scientific_name)}</strong><span>${escapeHtml(s.common_name||"")}</span></div><label>Mâles<input class="male-input" type="number" min="0" step="1" value="${d?.males||0}"></label><label>Femelles<input class="female-input" type="number" min="0" step="1" value="${d?.females||0}"></label><label>Indéterminés<input class="undetermined-input" type="number" min="0" step="1" value="${d?.undetermined||0}"></label>`;box.appendChild(row);});updateIdentificationSummary();}
+function updateIdentificationSummary(){const rows=[...$("aphidSpeciesRows").querySelectorAll(".species-detail-row")];const identified=rows.reduce((sum,row)=>sum+Number(row.querySelector(".male-input").value||0)+Number(row.querySelector(".female-input").value||0)+Number(row.querySelector(".undetermined-input").value||0),0);const total=Number($("observationTotal").value||0);$("identificationSummary").textContent=`${identified} identifié${identified>1?"s":""} · ${Math.max(0,total-identified)} restant${Math.max(0,total-identified)>1?"s":""}`;$("identificationSummary").classList.toggle("over",identified>total);}
+function openObservationDialog(obs=null){$("observationForm").reset();resetExcelImport();$("observationId").value=obs?.id||"";$("observationDialogTitle").textContent=obs?"Modifier / compléter le relevé":"Ajouter un relevé";populateAdminSelects();const campaignId=obs?.campaign_id||$("campaignFilter").value||activeCampaigns()[0]?.id;$("observationCampaign").value=campaignId||"";const trap=obs?trapById(obs.trap_id):null;populateObservationParcelSelect(trap?.parcel_id||singleSelected(parcelFilterState),obs?.trap_id||singleSelected(trapFilterState));$("observationDate").value=obs?.observed_on||todayISO();$("observationTotal").value=obs?.total_captured??"";$("observationComment").value=obs?.comment||"";renderObservationSpeciesRows(obs?detailsForObservation(obs.id):[]);setMessage($("observationMessage"));$("observationDialog").showModal();}
+async function saveObservation(event){event.preventDefault();const existing=data.observations.find(o=>o.id===$("observationId").value);const campaign=campaignById($("observationCampaign").value);const total=Number($("observationTotal").value);if(!campaign||!$("observationTrap").value||!Number.isInteger(total)||total<0)return setMessage($("observationMessage"),"Renseigne correctement la campagne, le piège, la date et le total.",true);const detailRows=[...$("aphidSpeciesRows").querySelectorAll(".species-detail-row")].map(row=>({species_id:row.dataset.speciesId,males:Number(row.querySelector(".male-input").value||0),females:Number(row.querySelector(".female-input").value||0),undetermined:Number(row.querySelector(".undetermined-input").value||0)}));const identified=detailRows.reduce((s,d)=>s+d.males+d.females+d.undetermined,0);if(campaign.protocol_type==="aphid"&&identified>total)return setMessage($("observationMessage"),`Impossible : ${identified} individus sont identifiés alors que le total capturé est ${total}.`,true);const status=campaign.protocol_type!=="aphid"?"not_applicable":identified===0?"not_started":identified<total?"partial":"complete";const payload={id:existing?.id||uuid(),campaign_id:campaign.id,trap_id:$("observationTrap").value,observed_on:$("observationDate").value,total_captured:total,identification_status:status,comment:$("observationComment").value.trim()||null,legacy_source_id:existing?.legacy_source_id||null,archived_at:existing?.archived_at||null,created_by:existing?.created_by||currentUser.id,created_at:existing?.created_at||new Date().toISOString(),updated_at:new Date().toISOString()};try{await writeRecord(TABLES.observations,payload);if(campaign.protocol_type==="aphid"){for(const d of detailRows){const old=data.details.find(x=>x.observation_id===payload.id&&x.species_id===d.species_id);await writeRecord(TABLES.details,{id:old?.id||uuid(),observation_id:payload.id,species_id:d.species_id,males:d.males,females:d.females,undetermined:d.undetermined,created_at:old?.created_at||new Date().toISOString(),updated_at:new Date().toISOString()});}}setMessage($("observationMessage"),navigator.onLine?"Relevé enregistré.":"Relevé enregistré hors connexion. Il sera synchronisé automatiquement.");$("campaignFilter").value=campaign.id;populateParcelFilter();renderAll();}catch(error){setMessage($("observationMessage"),error.message||"Enregistrement impossible.",true);}}
+
+// -----------------------------------------------------------------------------
+// Interventions
+// -----------------------------------------------------------------------------
+function renderInterventionParcelChoices(campaignId,selected=[]){const box=$("interventionParcelChoices");box.innerHTML="";parcelsForCampaign(campaignId).forEach(p=>{const label=document.createElement("label");label.className="checkbox-card";label.innerHTML=`<input type="checkbox" value="${p.id}" ${selected.includes(p.id)?"checked":""}> <span>${escapeHtml(parcelLabel(p))}</span>`;box.appendChild(label);});}
+function openInterventionDialog(){const campaignId=$("campaignFilter").value||activeCampaigns()[0]?.id;populateAdminSelects();$("interventionCampaign").value=campaignId||"";$("interventionDate").value=todayISO();$("interventionTime").value="";$("interventionType").value="Traitement";$("interventionProduct").value="";$("interventionDose").value="";$("interventionTarget").value="";$("interventionComment").value="";renderInterventionParcelChoices(campaignId,[]);setMessage($("interventionMessage"));$("interventionDialog").showModal();}
+async function saveIntervention(event){event.preventDefault();const id=uuid();const payload={id,campaign_id:$("interventionCampaign").value,intervention_date:$("interventionDate").value,intervention_time:$("interventionTime").value||null,intervention_type:$("interventionType").value.trim(),product:$("interventionProduct").value.trim()||null,dose:$("interventionDose").value.trim()||null,target:$("interventionTarget").value.trim()||null,comment:$("interventionComment").value.trim()||null,archived_at:null,created_by:currentUser.id,created_at:new Date().toISOString(),updated_at:new Date().toISOString()};try{await writeRecord(TABLES.interventions,payload);const parcels=[...$("interventionParcelChoices").querySelectorAll('input:checked')].map(i=>i.value);for(const parcelId of parcels)await writeRecord(TABLES.interventionParcels,{id:uuid(),intervention_id:id,parcel_id:parcelId,created_at:new Date().toISOString()});setMessage($("interventionMessage"),navigator.onLine?"Intervention enregistrée.":"Intervention enregistrée hors connexion.");renderAll();}catch(error){setMessage($("interventionMessage"),error.message||"Enregistrement impossible.",true);}}
+
+// -----------------------------------------------------------------------------
+// Espèces
+// -----------------------------------------------------------------------------
+function openSpeciesDialog(){resetSpeciesForm();renderSpeciesList();setMessage($("speciesMessage"));$("speciesDialog").showModal();}
+
+function resetSpeciesForm(){
+  $("speciesForm").reset();
+  $("speciesId").value="";
+  $("speciesSubmitButton").textContent="Ajouter l'espèce";
+  $("speciesCancelEditButton").classList.add("hidden");
+  setMessage($("speciesMessage"));
+}
+
+// Pré-remplit le formulaire pour modifier une espèce existante
+// (nom scientifique / nom commun) sans changer son historique.
+function openSpeciesEditForm(species){
+  $("speciesId").value=species.id;
+  $("speciesScientific").value=species.scientific_name;
+  $("speciesCommon").value=species.common_name||"";
+  $("speciesSubmitButton").textContent="Enregistrer les modifications";
+  $("speciesCancelEditButton").classList.remove("hidden");
+  setMessage($("speciesMessage"));
+  $("speciesScientific").focus();
+}
+
+async function saveSpecies(event){
+  event.preventDefault();
+  const scientific=$("speciesScientific").value.trim();
+  const common=$("speciesCommon").value.trim();
+  if(!scientific)return;
+  const editingId=$("speciesId").value||null;
+  const existingRecord=editingId?speciesById(editingId):null;
+  const code=slugify(scientific);
+  const duplicate=data.species.find(s=>s.code===code&&s.id!==editingId);
+  if(duplicate)return setMessage($("speciesMessage"),"Cette espèce existe déjà.",true);
+  const payload={
+    id:existingRecord?.id||uuid(),
+    code,
+    scientific_name:scientific,
+    common_name:common||null,
+    active:existingRecord?.active??true,
+    archived_at:existingRecord?.archived_at||null,
+    created_by:existingRecord?.created_by||currentUser.id,
+    created_at:existingRecord?.created_at||new Date().toISOString(),
+    updated_at:new Date().toISOString()
+  };
+  try{
+    await writeRecord(TABLES.species,payload);
+    resetSpeciesForm();
+    setMessage($("speciesMessage"),editingId?"Espèce modifiée.":"Espèce ajoutée.");
+    renderAll();
+    renderSpeciesList();
+  }catch(error){
+    setMessage($("speciesMessage"),error.message||"Enregistrement impossible.",true);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Export Excel — structure proche du classeur de Bertrand
+// -----------------------------------------------------------------------------
+async function exportExcel() {
+  try { await ctx.vendor.xlsx(); } catch { /* message ci-dessous */ }
+  if (!window.XLSX) return setMessage($("globalMessage"), "Bibliothèque d’export Excel indisponible.", true);
+  const campaign = campaignById($("campaignFilter").value); if (!campaign) return;
+  const traps = trapsForCampaign(campaign.id); const observations = activeRows(data.observations).filter(o=>o.campaign_id===campaign.id).sort((a,b)=>a.observed_on.localeCompare(b.observed_on));
+  const dates=[...new Set(observations.map(o=>o.observed_on))].sort();
+  const rows=[];
+  rows.push([campaign.name]);
+  rows.push(["Parcelle / piège","Mesure",...dates.map(fmtDate)]);
+
+  traps.forEach(trap=>{
+    const parcel=parcelById(trap.parcel_id);const trapObs=observations.filter(o=>o.trap_id===trap.id);
+    const valueByDate=(date,fn)=>{const obs=trapObs.find(o=>o.observed_on===date);return obs?fn(obs):"";};
+    rows.push([`${parcelLabel(parcel)} — ${trap.code}`,"Total",...dates.map(d=>valueByDate(d,o=>o.total_captured))]);
+    if(campaign.protocol_type==="aphid")campaignSpecies(campaign.id).forEach(s=>{
+      const detailVal=(obs,key)=>{const det=data.details.find(x=>x.observation_id===obs.id&&x.species_id===s.id);return det?Number(det[key]||0):"";};
+      rows.push(["",`${s.scientific_name} — M`,...dates.map(d=>valueByDate(d,o=>detailVal(o,"males")))]);
+      rows.push(["",`${s.scientific_name} — F`,...dates.map(d=>valueByDate(d,o=>detailVal(o,"females")))]);
+      rows.push(["",`${s.scientific_name} — I`,...dates.map(d=>valueByDate(d,o=>detailVal(o,"undetermined")))]);
+    });
+    rows.push([]);
+  });
+
+  const anchor=campaignAnchor(campaign,observations);const weeks=[...new Set(observations.map(o=>bucketStart(o.observed_on,anchor)))].sort();
+  rows.push([]);rows.push(["TOTAUX HEBDOMADAIRES ET LISSAGE"]);rows.push(["Parcelle / piège","Mesure",...weeks.map(w=>fmtDate(w))]);
+  traps.forEach(trap=>{const parcel=parcelById(trap.parcel_id);const trapObs=observations.filter(o=>o.trap_id===trap.id);const totals=weeks.map(w=>trapObs.filter(o=>bucketStart(o.observed_on,anchor)===w).reduce((sum,o)=>sum+Number(o.total_captured||0),0));const smooth=totals.map((v,i)=>i===0?v:(v+totals[i-1])/2);rows.push([`${parcelLabel(parcel)} — ${trap.code}`,"Total hebdomadaire",...totals]);rows.push(["","Total lissé",...smooth]);if(campaign.protocol_type==="aphid")campaignSpecies(campaign.id).forEach(s=>{const weekly=weeks.map(w=>trapObs.filter(o=>bucketStart(o.observed_on,anchor)===w).reduce((sum,o)=>{const d=data.details.find(x=>x.observation_id===o.id&&x.species_id===s.id);return sum+(d?Number(d.males||0)+Number(d.females||0)+Number(d.undetermined||0):0);},0));const sm=weekly.map((v,i)=>i===0?v:(v+weekly[i-1])/2);rows.push(["",s.scientific_name,...weekly]);rows.push(["",`${s.scientific_name} lissé`,...sm]);});rows.push([]);});
+
+  const wb=XLSX.utils.book_new();const ws=XLSX.utils.aoa_to_sheet(rows);ws["!cols"]=[{wch:34},{wch:30},...dates.map(()=>({wch:12}))];XLSX.utils.book_append_sheet(wb,ws,(campaign.name||"Campagne").slice(0,31));
+  const trapRows=[["Campagne","Parcelle","Variété","Piège","Type","Rang","Position","Installation","Attractif","Commentaire"],...traps.map(t=>{const p=parcelById(t.parcel_id);return[campaign.name,p?.name||"",p?.variety||"",t.code,t.trap_type||"",t.row_ref||"",t.position||"",t.installed_on||"",t.attractant||"",t.comment||""];})];XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(trapRows),"Pièges");
+  const interventionRows=[["Date","Heure","Type","Produit","Dose","Cible","Parcelles","Commentaire"],...activeRows(data.interventions).filter(i=>i.campaign_id===campaign.id).map(i=>{const ids=data.interventionParcels.filter(l=>l.intervention_id===i.id).map(l=>l.parcel_id);return[i.intervention_date,i.intervention_time||"",i.intervention_type,i.product||"",i.dose||"",i.target||"",ids.map(id=>parcelById(id)?.name).filter(Boolean).join(", "),i.comment||""];})];XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(interventionRows),"Interventions");
+  XLSX.writeFile(wb,`SAM_Piegeage_${slugify(campaign.name)}_${campaign.year}.xlsx`);
+}
+
+
+
+// -----------------------------------------------------------------------------
+// Onglet Carte (fond satellite) : position des pièges
+// -----------------------------------------------------------------------------
+let trapMap = null;
+let trapMapLayer = null;
+let trapMapFitKey = null;
+let mapSelectedTrapId = "";
+let mapEditTrapId = ""; // piège dont l'emplacement est en cours de modification
+const trapMapMarkers = new Map();
+const MAP_COLORS = ["#d31145", "#ffb703", "#3ad1ff", "#7CFC00", "#ff7bd5", "#ff8c42", "#b388ff", "#ffffff"];
+
+function setView(view) {
+  const isMap = view === "carte";
+  root.querySelectorAll(".view-suivi").forEach(el => el.classList.toggle("hidden", isMap));
+  root.querySelectorAll(".view-carte").forEach(el => el.classList.toggle("hidden", !isMap));
+  root.querySelectorAll(".view-tab").forEach(btn => {
+    const active = btn.dataset.view === view;
+    btn.classList.toggle("active", active);
+    btn.setAttribute("aria-selected", String(active));
+  });
+  if (isMap) {
+    ctx.vendor.leaflet()
+      .then(() => {
+        if (ctx.scope.disposed) return;
+        renderMap();
+        setTimeout(() => { trapMap?.invalidateSize(); }, 60);
+      })
+      .catch(() => setMessage($("mapMessage"), "Carte indisponible (bibliothèque de cartographie non chargée).", true));
+  } else {
+    setTimeout(() => { chart?.resize(); }, 60);
+  }
+}
+
+function ensureTrapMap() {
+  if (trapMap) return true;
+  if (typeof L === "undefined") return false;
+  trapMap = L.map("trapMap", { zoomControl: true }).setView([43.6, 3.3], 8);
+  const ign = L.tileLayer("https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&FORMAT=image/jpeg&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}", {
+    maxZoom: 19, attribution: "© IGN – Géoplateforme"
+  });
+  const esri = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+    maxZoom: 19, attribution: "Imagery © Esri, Maxar, Earthstar Geographics"
+  });
+  ign.addTo(trapMap);
+  L.control.layers({ "Satellite IGN (France)": ign, "Satellite Esri (monde)": esri }, null, { collapsed: true }).addTo(trapMap);
+  trapMapLayer = L.layerGroup().addTo(trapMap);
+  trapMap.on("click", event => placeSelectedTrap(event.latlng.lat, event.latlng.lng));
+  return true;
+}
+
+function mapTraps() {
+  const campaignId = $("campaignFilter").value;
+  return trapsForCampaign(campaignId).filter(t => parcelFilterState.has(t.parcel_id) && trapFilterState.has(t.id));
+}
+
+function hasPosition(trap) {
+  return trap.latitude != null && trap.longitude != null && Number.isFinite(Number(trap.latitude)) && Number.isFinite(Number(trap.longitude));
+}
+
+function trapPopupHtml(trap) {
+  const parcel = parcelById(trap.parcel_id);
+  const last = activeRows(data.observations).filter(o => o.trap_id === trap.id).sort((a, b) => b.observed_on.localeCompare(a.observed_on))[0];
+  return `<div class="map-popup"><strong>${escapeHtml(trap.code)}</strong>` +
+    `<span>${escapeHtml(parcel ? parcelLabel(parcel) : "—")}</span>` +
+    `<span>${last ? `Dernier relevé : ${escapeHtml(fmtDate(last.observed_on))} — ${Number(last.total_captured || 0)} capture(s)` : "Aucun relevé"}</span>` +
+    (currentUser ? (trap.id === mapEditTrapId
+      ? `<span class="map-popup-hint">Glisse le point pour le déplacer.</span><button type="button" class="small-button danger" data-map-remove>Retirer la position</button><button type="button" class="small-button" data-map-done>Terminer</button>`
+      : `<button type="button" class="small-button" data-map-edit>Modifier l’emplacement</button>`) : "") +
+    `</div>`;
+}
+
+function renderMap() {
+  if (!$("mapSection") || $("mapSection").classList.contains("hidden")) return;
+  const isAdmin = Boolean(currentUser);
+  if (!ensureTrapMap()) {
+    $("mapMessage").textContent = "Carte indisponible (bibliothèque Leaflet non chargée : connexion Internet requise).";
+    $("mapMessage").classList.add("error");
+    return;
+  }
+  const traps = mapTraps();
+  const placed = traps.filter(hasPosition);
+  const campaign = campaignById($("campaignFilter").value);
+  $("mapSummary").textContent = campaign ? `${placed.length} / ${traps.length} piège(s) positionné(s)` : "";
+
+  // Sélecteur de piège à placer (administrateur)
+  const select = $("mapTrapSelect");
+  // Seuls les pièges pas encore placés sont proposés ; un piège déjà placé
+  // se modifie directement sur la carte (glisser le point / bouton du popup).
+  const unplaced = traps.filter(t => !hasPosition(t));
+  if (!unplaced.some(t => t.id === mapSelectedTrapId)) mapSelectedTrapId = unplaced[0]?.id || "";
+  select.innerHTML = "";
+  unplaced.forEach(t => select.add(new Option(`${t.code} — ${parcelLabel(parcelById(t.parcel_id))}`, t.id)));
+  if (!unplaced.length) select.add(new Option("Tous les pièges sont placés", ""));
+  select.value = mapSelectedTrapId;
+  select.disabled = !unplaced.length;
+  $("mapGpsButton").disabled = !unplaced.length;
+  // L'encart n'apparaît que s'il reste des pièges à placer.
+  $("mapAdminTools").classList.toggle("hidden", !isAdmin || !unplaced.length);
+  $("mapHint").textContent = "Choisis un piège à placer, puis clique sur la carte (ou utilise ta position GPS). Pour corriger un piège déjà placé, clique sur son point puis « Modifier l’emplacement ».";
+  if (!placed.some(t => t.id === mapEditTrapId)) mapEditTrapId = "";
+
+  // Couleur par parcelle
+  const parcelIds = [...new Set(traps.map(t => t.parcel_id))];
+  const colorOf = id => MAP_COLORS[parcelIds.indexOf(id) % MAP_COLORS.length];
+
+  trapMapLayer.clearLayers();
+  trapMapMarkers.clear();
+  placed.forEach(trap => {
+    const html = `<span class="pin-dot" style="background:${colorOf(trap.parcel_id)}"></span><span class="pin-label">${escapeHtml(trap.code)}</span>`;
+    const icon = L.divIcon({ className: "trap-pin", html, iconSize: [18, 18], iconAnchor: [9, 9] });
+    const marker = L.marker([Number(trap.latitude), Number(trap.longitude)], { icon, draggable: isAdmin && trap.id === mapEditTrapId, title: trap.code });
+    marker.bindPopup(trapPopupHtml(trap));
+    marker.on("dragend", () => { const p = marker.getLatLng(); mapEditTrapId = ""; saveTrapPosition(trap, p.lat, p.lng); });
+    marker.on("popupopen", event => {
+      const el = event.popup.getElement();
+      el?.querySelector("[data-map-edit]")?.addEventListener("click", () => {
+        mapEditTrapId = trap.id; renderMap();
+        trapMapMarkers.get(trap.id)?.openPopup();
+      });
+      el?.querySelector("[data-map-done]")?.addEventListener("click", () => { mapEditTrapId = ""; renderMap(); });
+      el?.querySelector("[data-map-remove]")?.addEventListener("click", () => { mapEditTrapId = ""; marker.closePopup(); saveTrapPosition(trap, null, null); });
+    });
+    marker.addTo(trapMapLayer);
+    trapMapMarkers.set(trap.id, marker);
+  });
+
+  $("mapEmpty").classList.toggle("hidden", placed.length > 0);
+
+  // On recadre seulement quand la campagne change (pas à chaque pose de piège).
+  const fitKey = campaign?.id || "";
+  if (fitKey !== trapMapFitKey) {
+    trapMapFitKey = fitKey;
+    if (placed.length) trapMap.fitBounds(L.latLngBounds(placed.map(t => [Number(t.latitude), Number(t.longitude)])).pad(0.3), { maxZoom: 18 });
+  }
+}
+
+async function saveTrapPosition(trap, lat, lng) {
+  if (!currentUser) return setMessage($("mapMessage"), "Connexion administrateur requise.", true);
+  const latitude = lat == null ? null : Math.round(lat * 1e6) / 1e6;
+  const longitude = lng == null ? null : Math.round(lng * 1e6) / 1e6;
+  try {
+    await writeRecord(TABLES.traps, { ...trap, latitude, longitude, updated_at: new Date().toISOString() });
+    setMessage($("mapMessage"), latitude == null ? `Position de ${trap.code} retirée.` : (navigator.onLine ? `${trap.code} positionné.` : `${trap.code} positionné hors connexion.`));
+  } catch (error) {
+    const missing = /latitude|longitude|column/i.test(error?.message || "");
+    setMessage($("mapMessage"), missing ? "Colonnes latitude/longitude absentes : exécute d’abord supabase_patch_carte.sql dans Supabase." : (error.message || "Enregistrement impossible."), true);
+  }
+  renderMap();
+}
+
+function placeSelectedTrap(lat, lng) {
+  if (!currentUser) return;
+  if (!mapSelectedTrapId) return; // tous les pièges sont déjà placés : le clic ne fait rien
+  const trap = trapById(mapSelectedTrapId);
+  if (!trap) return setMessage($("mapMessage"), "Choisis d’abord un piège à placer.", true);
+  saveTrapPosition(trap, lat, lng);
+}
+
+function placeTrapWithGps() {
+  const trap = trapById(mapSelectedTrapId);
+  if (!trap) return setMessage($("mapMessage"), "Choisis d’abord un piège à placer.", true);
+  if (!navigator.geolocation) return setMessage($("mapMessage"), "Géolocalisation indisponible sur cet appareil.", true);
+  setMessage($("mapMessage"), "Recherche de la position GPS…");
+  navigator.geolocation.getCurrentPosition(
+    pos => { trapMap?.setView([pos.coords.latitude, pos.coords.longitude], 18); saveTrapPosition(trap, pos.coords.latitude, pos.coords.longitude); },
+    () => setMessage($("mapMessage"), "Position GPS impossible (autorisation refusée ou signal absent).", true),
+    { enableHighAccuracy: true, timeout: 20000 }
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Événements UI
+// -----------------------------------------------------------------------------
+function bind() {
+  $("campaignFilter").addEventListener("change",()=>{populateParcelFilter();populateAdminSelects();renderDashboard();});$("unitFilter").addEventListener("change",renderDashboard);$("processingFilter").addEventListener("change",renderDashboard);$("exportExcelButton").addEventListener("click",exportExcel);$("exportSvgButton").addEventListener("click",exportChartSvg);$("observationExcelFile").addEventListener("change",event=>analyzeObservationExcel(event.target.files?.[0]));$("cancelExcelImportButton").addEventListener("click",resetExcelImport);$("confirmExcelImportButton").addEventListener("click",confirmObservationExcelImport);
+  ["parcel","trap","species","sex"].forEach(wireDropdownToggle);
+  root.querySelectorAll(".view-tab").forEach(btn => btn.addEventListener("click", () => setView(btn.dataset.view)));
+  $("mapTrapSelect").addEventListener("change", () => { mapSelectedTrapId = $("mapTrapSelect").value; renderMap(); });
+  $("mapGpsButton").addEventListener("click", placeTrapWithGps);
+  ctx.scope.on(document,"click",closeAllFilterPanels);
+  ctx.scope.on(document,"keydown",event=>{if(event.key==="Escape")closeAllFilterPanels();});
+  $("speciesCancelEditButton").addEventListener("click",resetSpeciesForm);
+  $("newCampaignButton").addEventListener("click",()=>openCampaignDialog());$("newParcelButton").addEventListener("click",()=>openParcelDialog());$("newTrapButton").addEventListener("click",()=>openTrapDialog());$("newObservationButton").addEventListener("click",()=>openObservationDialog());$("newInterventionButton").addEventListener("click",openInterventionDialog);$("speciesButton").addEventListener("click",openSpeciesDialog);$("archivesButton").addEventListener("click",openArchivesDialog);$("migrationButton").addEventListener("click",()=>ctx.navigate("migration"));
+  $("campaignForm").addEventListener("submit",saveCampaign);$("parcelForm").addEventListener("submit",saveParcel);$("trapForm").addEventListener("submit",saveTrap);$("trapEventForm").addEventListener("submit",saveTrapEvent);$("observationForm").addEventListener("submit",saveObservation);$("interventionForm").addEventListener("submit",saveIntervention);$("speciesForm").addEventListener("submit",saveSpecies);
+  $("campaignProtocol").addEventListener("change",toggleCampaignSpeciesSection);$("trapCampaign").addEventListener("change",populateTrapParcelSelect);$("observationCampaign").addEventListener("change",()=>{populateObservationParcelSelect();resetExcelImport();});$("observationParcel").addEventListener("change",()=>{populateObservationTrapSelect();resetExcelImport();});$("observationTrap").addEventListener("change",resetExcelImport);$("observationTotal").addEventListener("input",updateIdentificationSummary);$("aphidSpeciesRows").addEventListener("input",updateIdentificationSummary);$("interventionCampaign").addEventListener("change",()=>renderInterventionParcelChoices($("interventionCampaign").value,[]));
+  root.querySelectorAll("[data-close]").forEach(btn=>btn.addEventListener("click",()=>$(btn.dataset.close).close()));root.querySelectorAll("dialog").forEach(dialog=>dialog.addEventListener("click",event=>{if(event.target===dialog)dialog.close();}));
+  ctx.scope.on(window,"offline",()=>updateSyncStatus());ctx.scope.on(window,"online",async()=>{updateSyncStatus("Connexion retrouvée — synchronisation…","syncing");await syncQueue();});
+}
+
+
+
+
+  // ------------------------------------------------------------------
+  // Intégration SAM Outils : période (filtre des relevés), connexion
+  // ------------------------------------------------------------------
+  ctx.filters({ location: false, period: true });
+  ctx.period.configure({
+    presets: [
+      { id: 'campaign', label: 'Campagne entière', resolve: () => ({ start: null, end: null }) },
+      { id: 'last30', label: '30 derniers jours', resolve: today => ({ start: addDaysISO(today, -29), end: today }) },
+      { id: 'last90', label: '90 derniers jours', resolve: today => ({ start: addDaysISO(today, -89), end: today }) },
+      { id: 'ytd', label: 'Depuis le 1er janvier', resolve: today => ({ start: `${today.slice(0, 4)}-01-01`, end: today }) }
+    ],
+    defaultPreset: 'campaign',
+    min: '2000-01-01',
+    hint: 'La période filtre les relevés de la campagne choisie (graphique, indicateurs et historique).'
+  });
+  ctx.period.onChange(() => renderDashboard());
+
+  ctx.onAuthChange(async () => {
+    currentUser = ctx.isAdmin ? ctx.user : null;
+    renderAuth();
+    await loadData(true);
+    if (currentUser) await syncQueue();
+  });
+
+  bind();
+  updateSyncStatus();
+  await init();
+
+  return {
+    unmount() {
+      if (chart) chart.destroy();
+      if (trapMap) { trapMap.remove(); trapMap = null; }
+    }
+  };
+
 }

@@ -1,1 +1,26 @@
-/* migration */
+/* Migration des données Piégeage */
+.tool-migration .mig { display: grid; gap: 18px; max-width: 980px; }
+.tool-migration .mig-card { padding: 20px 22px; border: 1px solid var(--sam-line); border-radius: 12px; background: #fff; box-shadow: var(--sam-shadow-sm); }
+.tool-migration .mig-card h2 { margin: 2px 0 8px; font-size: 1.2rem; }
+.tool-migration .mig-kicker { margin: 0; color: var(--sam-red-700); font-size: .74rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.tool-migration .mig-text { margin: 0 0 14px; color: var(--sam-ink-2); font-size: .92rem; }
+.tool-migration .mig-login { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: end; }
+.tool-migration .mig-login label { display: grid; gap: 6px; color: var(--sam-ink-2); font-size: .86rem; font-weight: 500; }
+.tool-migration .mig-login input { min-height: 42px; padding: 0 12px; border: 1px solid #d5d9df; border-radius: 8px; font-size: .95rem; }
+.tool-migration .mig-button { min-height: 42px; padding: 0 16px; border: 1px solid var(--sam-line); border-radius: 8px; background: #fff; font-weight: 600; }
+.tool-migration .mig-button.is-primary { border-color: var(--sam-red-700); background: var(--sam-red-700); color: #fff; }
+.tool-migration .mig-button:disabled { opacity: .6; }
+.tool-migration .mig-link { margin-top: 10px; padding: 0; border: 0; background: none; color: var(--sam-red-700); font-size: .86rem; text-decoration: underline; }
+.tool-migration .mig-message { margin: 10px 0 0; color: var(--sam-ink-2); font-size: .9rem; }
+.tool-migration .mig-table-wrap { overflow-x: auto; }
+.tool-migration .mig-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.tool-migration .mig-table th, .tool-migration .mig-table td { padding: 8px 10px; border-bottom: 1px solid var(--sam-line-2); text-align: right; }
+.tool-migration .mig-table th:first-child, .tool-migration .mig-table td:first-child { text-align: left; }
+.tool-migration .mig-table td small { display: block; color: var(--sam-muted); font-size: .74rem; }
+.tool-migration .mig-table td.is-error { color: var(--sam-red-700); font-weight: 700; }
+.tool-migration .mig-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.tool-migration .mig-log { margin: 12px 0 0; padding-left: 18px; font-size: .85rem; color: var(--sam-ink-2); }
+.tool-migration .mig-log .is-error { color: var(--sam-red-700); }
+.tool-migration .mig-log .is-warning { color: #8c5a11; }
+.tool-migration .mig-log .is-ok { color: var(--sam-green-700); font-weight: 600; }
+@media (max-width: 760px) { .tool-migration .mig-login { grid-template-columns: 1fr; } }
