@@ -6,7 +6,7 @@ import { places, searchPlaces, locateMe, placeLabel } from './places.js';
 import { period } from './period.js';
 import { storage, debounce, escapeHtml, formatDateShort, loadScript, loadCss, VENDOR, isISODate, todayISO } from './util.js';
 
-const APP_VERSION = '2026-11-05.3';
+const APP_VERSION = '2026-11-05.4';
 
 export const TOOLS = [
   { id: 'indicateurs', title: 'SAM Indicateurs agroclimatiques', card: 'Indicateurs <br>agroclimatiques', icon: 'toolIndicateurs' },
@@ -250,7 +250,7 @@ async function handleAuthButton() {
 function renderToolCards(activeId) {
   $('sam-tools').innerHTML = TOOLS.map(tool => `
     <a class="sam-tool-card${tool.id === activeId ? ' is-active' : ''}" href="#/${tool.id}" ${tool.id === activeId ? 'aria-current="page"' : ''}>
-      <span class="sam-tool-card-icon">${icons[tool.icon]}</span>
+      <span class="sam-tool-card-icon"><img src="assets/img/tools/${tool.id}.png" alt="" width="40" height="40" decoding="async"></span>
       <span class="sam-tool-card-label">${tool.card}</span>
     </a>`).join('');
   const active = $('sam-tools').querySelector('.is-active');
