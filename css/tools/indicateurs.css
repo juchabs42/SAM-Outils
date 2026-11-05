@@ -1,0 +1,629 @@
+/* Styles de l'ancienne appli « indicateurs », limités au conteneur .tool-indicateurs (généré). */
+.tool-indicateurs{
+--sam:#e1064b;--sam-dark:#b3043d;--sam-light:#fde8ef;--ink:#1f2933;--muted:#65727e;
+--line:#d9e0e5;--surface:#fff;--background:#f4f6f7;--radius:16px;--shadow:0 12px 28px rgba(31,41,51,.08)
+}
+.tool-indicateurs *{box-sizing:border-box}.tool-indicateurs{font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);line-height:1.55}
+.tool-indicateurs button,.tool-indicateurs select,.tool-indicateurs input{font:inherit}.tool-indicateurs button{cursor:pointer}.tool-indicateurs .sudexpe-mark{width:132px;height:50px;padding:6px 10px}.tool-indicateurs .app-mark{width:52px;height:50px;padding:6px}.tool-indicateurs .nav-link{border:0;color:inherit;background:transparent}.tool-indicateurs .nav-link{padding:10px;border-radius:10px;font-size:.85rem}.tool-indicateurs .nav-link:hover,.tool-indicateurs .nav-link.active{background:rgba(255,255,255,.16)}.tool-indicateurs .page-section{display:none}.tool-indicateurs .page-section.active{display:block}
+.tool-indicateurs .location-panel{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center;margin-bottom:28px;padding:20px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow)}.tool-indicateurs .location-panel h2{margin:3px 0;font-size:1.3rem}.tool-indicateurs .location-panel p{margin:0;color:var(--muted)}.tool-indicateurs .location-actions{display:flex;gap:10px}.tool-indicateurs .manual-form{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:end;gap:12px;padding-top:16px;border-top:1px solid var(--line)}.tool-indicateurs .manual-form.hidden,.tool-indicateurs .place-search-form.hidden,.tool-indicateurs .loading-panel.hidden{display:none}.tool-indicateurs .manual-form label{display:grid;gap:5px;font-size:.8rem;font-weight:700;color:var(--muted)}.tool-indicateurs .status-message{grid-column:1/-1;min-height:20px;color:var(--sam);font-size:.85rem;font-weight:700}
+.tool-indicateurs .loading-panel{display:flex;justify-content:center;align-items:center;gap:12px;padding:18px;margin-bottom:20px;border:1px solid var(--line);border-radius:13px;background:#fff}.tool-indicateurs .spinner{width:20px;height:20px;border:3px solid #e5d4d8;border-top-color:var(--sam);border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+.tool-indicateurs .hero,.tool-indicateurs .section-heading{display:flex;justify-content:space-between;gap:28px;align-items:flex-start;margin-bottom:24px}.tool-indicateurs .hero h2,.tool-indicateurs .section-heading h2{max-width:850px;margin:5px 0 10px;font-size:clamp(1.8rem,3vw,3rem);line-height:1.1;letter-spacing:-.03em}.tool-indicateurs .section-heading h2{font-size:clamp(1.65rem,2.6vw,2.45rem)}.tool-indicateurs .hero p,.tool-indicateurs .section-heading p{max-width:850px;margin:0;color:var(--muted)}.tool-indicateurs .eyebrow,.tool-indicateurs .panel-kicker{margin:0;color:var(--sam);font-weight:750;text-transform:uppercase;letter-spacing:.1em;font-size:.75rem}
+.tool-indicateurs .summary-grid,.tool-indicateurs .metric-grid{display:grid;gap:14px;grid-template-columns:repeat(4,minmax(0,1fr));margin:22px 0}.tool-indicateurs .summary-card,.tool-indicateurs .metric-card,.tool-indicateurs .panel,.tool-indicateurs .method-card,.tool-indicateurs .comparison-card{border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow)}.tool-indicateurs .summary-card,.tool-indicateurs .metric-card{padding:18px}.tool-indicateurs .summary-card p,.tool-indicateurs .metric-card p,.tool-indicateurs .summary-card span,.tool-indicateurs .metric-card span{margin:0;color:var(--muted)}.tool-indicateurs .summary-card strong,.tool-indicateurs .metric-card strong{display:block;margin:5px 0 2px;font-size:1.32rem}.tool-indicateurs .summary-card span,.tool-indicateurs .metric-card span{font-size:.78rem}.tool-indicateurs .score-card strong{font-size:2rem}
+.tool-indicateurs .dashboard-grid,.tool-indicateurs .two-columns{display:grid;gap:18px;grid-template-columns:repeat(2,minmax(0,1fr));margin:20px 0}.tool-indicateurs .panel{padding:20px}.tool-indicateurs .panel-header{display:flex;justify-content:space-between;gap:18px;margin-bottom:16px}.tool-indicateurs .panel h3{margin:3px 0 0;font-size:1.12rem}.tool-indicateurs .chart-wrap{position:relative;min-height:300px}.tool-indicateurs .chart-wrap.large{min-height:410px}.tool-indicateurs .controls{display:flex;flex-wrap:wrap;gap:14px;margin:22px 0;padding:16px;border:1px solid var(--line);border-radius:14px;background:#fff}.tool-indicateurs .controls label{display:grid;gap:6px;color:var(--muted);font-size:.82rem;font-weight:700}
+.tool-indicateurs select,.tool-indicateurs input{min-height:42px;padding:9px 11px;border:1px solid #cbd4da;border-radius:9px;background:#fff}.tool-indicateurs .primary-button,.tool-indicateurs .secondary-button{min-height:42px;padding:9px 14px;border-radius:9px;font-weight:750}.tool-indicateurs .primary-button{border:1px solid var(--sam);color:#fff;background:var(--sam)}.tool-indicateurs .secondary-button{border:1px solid #cbd4da;background:#fff}
+.tool-indicateurs .metric-large{display:grid;gap:4px;padding:18px;border-radius:12px;background:var(--sam-light)}.tool-indicateurs .metric-large strong{font-size:2rem}.tool-indicateurs .metric-large span{color:var(--muted);font-size:.8rem}.tool-indicateurs .reading-card{display:grid;gap:10px;margin-top:15px}.tool-indicateurs .reading-item{padding:12px;border:1px solid var(--line);border-radius:10px;background:#f8fafb}.tool-indicateurs .reading-item strong{display:block}
+.tool-indicateurs .score-legend{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0}.tool-indicateurs .score-legend span{padding:8px 11px;border-radius:999px;font-size:.78rem;font-weight:750}.tool-indicateurs .score-low{background:#dbeafe}.tool-indicateurs .score-moderate{background:#dcfce7}.tool-indicateurs .score-high{background:#fef3c7}.tool-indicateurs .score-severe{background:#fed7aa}.tool-indicateurs .score-extreme{background:#f3e8ff}
+.tool-indicateurs .forecast-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:12px;margin-top:18px}.tool-indicateurs .forecast-card{padding:14px;border:1px solid var(--line);border-radius:13px;background:#fff;box-shadow:var(--shadow)}.tool-indicateurs .forecast-card strong{display:block;font-size:1.5rem}.tool-indicateurs .forecast-card span{font-size:.78rem;color:var(--muted)}
+.tool-indicateurs .table-wrap{overflow:auto}.tool-indicateurs table{width:100%;border-collapse:collapse;font-size:.88rem}.tool-indicateurs th,.tool-indicateurs td{padding:11px 8px;text-align:left;border-bottom:1px solid #e7ecef}.tool-indicateurs th{font-size:.76rem;color:var(--muted);text-transform:uppercase}.tool-indicateurs .badge{display:inline-flex;padding:4px 8px;border-radius:999px;font-size:.74rem;font-weight:750}.tool-indicateurs .badge-good{background:#dcfce7;color:#276344}.tool-indicateurs .badge-ok{background:#fef3c7;color:#7c5b11}.tool-indicateurs .badge-poor{background:#fee2e2;color:#8b2d2d}
+.tool-indicateurs .method-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.tool-indicateurs .method-card{padding:22px}.tool-indicateurs .method-card h3{margin-top:0}.tool-indicateurs .method-card p{margin-bottom:0;color:var(--muted)}.tool-indicateurs .warning-box{margin:20px 0;padding:16px 18px;border-left:5px solid var(--sam);border-radius:13px;background:var(--sam-light);color:#5a2630}
+@media(max-width:1050px){.tool-indicateurs .summary-grid,.tool-indicateurs .metric-grid{grid-template-columns:repeat(2,1fr)}.tool-indicateurs .forecast-grid{grid-template-columns:repeat(3,1fr)}}@media(max-width:720px){.tool-indicateurs .location-panel{grid-template-columns:1fr}.tool-indicateurs .location-actions,.tool-indicateurs .manual-form,.tool-indicateurs .place-search-form{display:grid}.tool-indicateurs .hero,.tool-indicateurs .section-heading,.tool-indicateurs .dashboard-grid,.tool-indicateurs .two-columns,.tool-indicateurs .method-grid{display:grid;grid-template-columns:1fr}.tool-indicateurs .summary-grid,.tool-indicateurs .metric-grid,.tool-indicateurs .forecast-grid{grid-template-columns:1fr}.tool-indicateurs .panel{padding:16px}.tool-indicateurs .chart-wrap,.tool-indicateurs .chart-wrap.large{min-height:330px}}
+
+.tool-indicateurs .vpd-legend-inline{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 0}.tool-indicateurs .vpd-legend-item{display:inline-flex;align-items:center;gap:7px;padding:6px 9px;border:1px solid var(--line);border-radius:999px;background:#fff;font-size:.76rem}.tool-indicateurs .vpd-swatch{width:14px;height:14px;border-radius:4px;border:1px solid rgba(0,0,0,.12)}.tool-indicateurs .forecast-card{display:grid;gap:6px}.tool-indicateurs .forecast-card .forecast-level{display:inline-flex;width:max-content;padding:4px 8px;border-radius:999px;background:#f4f6f7;color:var(--ink);font-weight:700}.tool-indicateurs .forecast-card .forecast-metrics{display:grid;gap:4px;margin-top:4px;padding-top:8px;border-top:1px solid var(--line)}.tool-indicateurs .forecast-card .forecast-metrics span{display:block}
+
+.tool-indicateurs .swatch-blue{background:#4895ef}
+.tool-indicateurs .swatch-green{background:#52b788}
+.tool-indicateurs .swatch-yellow{background:#f8c43e}
+.tool-indicateurs .swatch-orange{background:#f48c36}
+.tool-indicateurs .swatch-red{background:#d64541}
+.tool-indicateurs .swatch-purple{background:#533483}
+
+
+
+
+/* Prévisions météo */
+.tool-indicateurs .dashboard-summary-grid{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+}
+.tool-indicateurs .weather-forecast-grid{
+  display:grid;
+  grid-template-columns:repeat(7,minmax(0,1fr));
+  gap:12px;
+  margin:20px 0;
+}
+.tool-indicateurs .weather-card{
+  padding:15px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:#fff;
+  box-shadow:var(--shadow);
+}
+.tool-indicateurs .weather-card .weather-day{
+  display:block;
+  color:var(--sam);
+  font-size:.78rem;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+.tool-indicateurs .weather-card strong{
+  display:block;
+  margin:5px 0 8px;
+  font-size:1.25rem;
+}
+.tool-indicateurs .weather-card .weather-detail{
+  display:block;
+  margin-top:4px;
+  color:var(--muted);
+  font-size:.78rem;
+}
+.tool-indicateurs .weather-chart-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:18px;
+}
+.tool-indicateurs .method-warning{
+  margin-top:22px;
+}
+@media(max-width:1050px){
+  .tool-indicateurs .weather-forecast-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+@media(max-width:720px){
+  .tool-indicateurs .dashboard-summary-grid,.tool-indicateurs .weather-forecast-grid,.tool-indicateurs .weather-chart-grid{grid-template-columns:1fr}
+}
+
+
+/* ===== Version mobile / PWA ===== */
+.tool-indicateurs button,.tool-indicateurs a,.tool-indicateurs select,.tool-indicateurs input{-webkit-tap-highlight-color:transparent}
+.tool-indicateurs button{touch-action:manipulation}
+.tool-indicateurs .app-message{grid-column:1/-1;color:var(--muted);font-size:.78rem}
+.tool-indicateurs .nav-link{min-height:44px}
+.tool-indicateurs .primary-button,.tool-indicateurs .secondary-button,.tool-indicateurs select,.tool-indicateurs input{min-height:46px}
+.tool-indicateurs .weather-forecast-grid,.tool-indicateurs .forecast-grid{scrollbar-width:thin}
+
+@media(max-width:760px){
+  .tool-indicateurs{--radius:14px;--shadow:0 5px 16px rgba(31,41,51,.07)}
+  .tool-indicateurs .sudexpe-mark{width:104px;height:42px;padding:5px 8px}
+  .tool-indicateurs .app-mark{width:44px;height:42px;padding:5px}
+  .tool-indicateurs .nav-link{display:flex;align-items:center;justify-content:center;flex:0 0 auto;min-width:104px;min-height:52px;padding:7px 9px;border-radius:10px;font-size:.72rem;line-height:1.15;text-align:center;white-space:normal;scroll-snap-align:center}
+  .tool-indicateurs .nav-link.active{background:#fff;color:var(--sam-dark);font-weight:800}
+  .tool-indicateurs .location-panel{grid-template-columns:1fr;gap:12px;margin-bottom:18px;padding:14px;border-radius:14px}
+  .tool-indicateurs .location-panel h2{font-size:1.15rem}
+  .tool-indicateurs .location-panel p{font-size:.82rem}
+  .tool-indicateurs .location-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .tool-indicateurs .manual-form{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding-top:12px}
+  .tool-indicateurs .place-search-form{grid-template-columns:1fr;gap:8px;padding-top:12px}
+  .tool-indicateurs .manual-form .primary-button{grid-column:1/-1}
+  .tool-indicateurs .place-search-form .primary-button{width:100%}
+  .tool-indicateurs .manual-form input{width:100%;font-size:16px}
+  .tool-indicateurs .place-search-form input{font-size:16px}
+
+  .tool-indicateurs .hero,.tool-indicateurs .section-heading{display:block;margin-bottom:16px}
+  .tool-indicateurs .hero h2,.tool-indicateurs .section-heading h2{margin:4px 0 8px;font-size:1.65rem;line-height:1.12}
+  .tool-indicateurs .hero p,.tool-indicateurs .section-heading p{font-size:.9rem}
+  .tool-indicateurs .eyebrow,.tool-indicateurs .panel-kicker{font-size:.68rem}
+
+  .tool-indicateurs .dashboard-summary-grid,.tool-indicateurs .summary-grid,.tool-indicateurs .metric-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:14px 0}
+  .tool-indicateurs .summary-card,.tool-indicateurs .metric-card{min-width:0;padding:13px}
+  .tool-indicateurs .summary-card p,.tool-indicateurs .metric-card p{font-size:.75rem;line-height:1.25}
+  .tool-indicateurs .summary-card strong,.tool-indicateurs .metric-card strong{font-size:1.12rem;line-height:1.2}
+  .tool-indicateurs .score-card strong{font-size:1.45rem}
+  .tool-indicateurs .summary-card span,.tool-indicateurs .metric-card span{font-size:.7rem;line-height:1.3}
+
+  .tool-indicateurs .dashboard-grid,.tool-indicateurs .weather-chart-grid,.tool-indicateurs .two-columns,.tool-indicateurs .method-grid{grid-template-columns:1fr;gap:12px;margin:14px 0}
+  .tool-indicateurs .panel{padding:13px;border-radius:14px;overflow:hidden}
+  .tool-indicateurs .panel-header{margin-bottom:10px}
+  .tool-indicateurs .panel h3{font-size:1rem}
+  .tool-indicateurs .chart-wrap,.tool-indicateurs .chart-wrap.large{min-height:270px;height:270px}
+  .tool-indicateurs #dashboardScoreChart,.tool-indicateurs #dashboardVpdChart{max-height:270px}
+
+  .tool-indicateurs .weather-forecast-grid{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(230px,78vw);grid-template-columns:none;gap:10px;margin:14px -4px 18px;padding:3px 4px 8px;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain}
+  .tool-indicateurs .weather-card{scroll-snap-align:start;padding:14px}
+  .tool-indicateurs .weather-card strong{font-size:1.22rem}
+
+  .tool-indicateurs .forecast-grid{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(230px,78vw);grid-template-columns:none;gap:10px;margin:14px -4px 0;padding:3px 4px 8px;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain}
+  .tool-indicateurs .forecast-card{scroll-snap-align:start}
+
+  .tool-indicateurs .controls{padding:12px;margin:14px 0}
+  .tool-indicateurs .controls label{width:100%}
+  .tool-indicateurs .controls select{width:100%;font-size:16px}
+  .tool-indicateurs .vpd-legend-inline{flex-wrap:nowrap;overflow-x:auto;padding-bottom:5px;scroll-snap-type:x proximity}
+  .tool-indicateurs .vpd-legend-item{flex:0 0 auto;scroll-snap-align:start;font-size:.7rem}
+  .tool-indicateurs .score-legend{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}
+  .tool-indicateurs .score-legend span{flex:0 0 auto}
+
+  .tool-indicateurs .method-card{padding:16px}
+  .tool-indicateurs .warning-box{margin:14px 0;padding:14px;font-size:.86rem}
+}
+
+@media(max-width:390px){
+  .tool-indicateurs .dashboard-summary-grid,.tool-indicateurs .summary-grid,.tool-indicateurs .metric-grid{grid-template-columns:1fr}
+  .tool-indicateurs .location-actions,.tool-indicateurs .manual-form,.tool-indicateurs .place-search-form{grid-template-columns:1fr}
+  .tool-indicateurs .manual-form .primary-button{grid-column:auto}
+  .tool-indicateurs .nav-link{min-width:96px}
+  .tool-indicateurs .chart-wrap,.tool-indicateurs .chart-wrap.large{min-height:250px;height:250px}
+}
+
+/* Sélecteurs de période */
+.tool-indicateurs .compact-controls{
+  width:max-content;
+  max-width:100%;
+  margin:12px 0 18px;
+}
+.tool-indicateurs .compact-controls label{
+  min-width:190px;
+}
+@media(max-width:720px){
+  .tool-indicateurs .compact-controls{
+    width:100%;
+  }
+  .tool-indicateurs .compact-controls label,
+  .tool-indicateurs .compact-controls select{
+    width:100%;
+  }
+}
+
+/* Recherche de lieu */
+.tool-indicateurs .place-search-form{
+  grid-column:1/-1;
+  display:grid;
+  grid-template-columns:minmax(220px,1fr) auto;
+  align-items:end;
+  gap:10px;
+  padding-top:16px;
+  border-top:1px solid var(--line);
+}
+.tool-indicateurs .place-search-form label{
+  display:grid;
+  gap:5px;
+  color:var(--muted);
+  font-size:.8rem;
+  font-weight:700;
+}
+.tool-indicateurs .place-search-form input{
+  width:100%;
+}
+.tool-indicateurs .place-search-results{
+  grid-column:1/-1;
+  display:grid;
+  gap:7px;
+  max-height:300px;
+  overflow:auto;
+}
+.tool-indicateurs .place-result{
+  display:grid;
+  gap:2px;
+  width:100%;
+  padding:11px 12px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:#fff;
+  color:var(--ink);
+  text-align:left;
+}
+.tool-indicateurs .place-result:hover,
+.tool-indicateurs .place-result:focus-visible{
+  border-color:var(--sam);
+  background:var(--sam-light);
+}
+.tool-indicateurs .place-result strong{
+  font-size:.9rem;
+}
+.tool-indicateurs .place-result span,
+.tool-indicateurs .place-search-empty{
+  color:var(--muted);
+  font-size:.76rem;
+}
+.tool-indicateurs .place-search-empty{
+  margin:4px 0;
+}
+
+/* Cartes météo interactives */
+.tool-indicateurs .weather-card-button{
+  appearance:none;
+  -webkit-appearance:none;
+  width:100%;
+  font:inherit;
+  color:inherit;
+  text-align:left;
+  cursor:pointer;
+  transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease,background .16s ease;
+}
+.tool-indicateurs .weather-card-button:hover{border-color:rgba(211,17,69,.45)}
+.tool-indicateurs .weather-card-button:focus-visible{outline:3px solid rgba(211,17,69,.22);outline-offset:2px}
+.tool-indicateurs .weather-card-button.selected{
+  border-color:var(--sam);
+  background:var(--sam-light);
+  box-shadow:0 0 0 2px rgba(211,17,69,.10),var(--shadow);
+  transform:translateY(-1px);
+}
+.tool-indicateurs .weather-card-button.selected .weather-day{color:var(--sam)}
+@media(max-width:720px){
+  .tool-indicateurs .weather-card-button{min-height:100%;-webkit-tap-highlight-color:transparent}
+}
+
+
+/* Localisations favorites */
+.tool-indicateurs .favorite-location-button.is-favorite{
+  border-color:var(--sam);
+  color:var(--sam);
+  background:var(--sam-light);
+}
+.tool-indicateurs .favorite-locations-wrap{
+  grid-column:1/-1;
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px 10px;
+  padding-top:12px;
+  border-top:1px solid var(--line);
+}
+.tool-indicateurs .favorite-locations-wrap.hidden{display:none}
+.tool-indicateurs .favorite-locations-label{
+  color:var(--muted);
+  font-size:.78rem;
+  font-weight:750;
+}
+.tool-indicateurs .favorite-locations{
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+}
+.tool-indicateurs .favorite-location-chip{
+  display:inline-flex;
+  align-items:stretch;
+  overflow:hidden;
+  border:1px solid #e2c0ca;
+  border-radius:999px;
+  background:#fff;
+}
+.tool-indicateurs .favorite-location-open,
+.tool-indicateurs .favorite-location-remove{
+  border:0;
+  background:transparent;
+  color:var(--sam-dark);
+}
+.tool-indicateurs .favorite-location-open{
+  padding:7px 8px 7px 11px;
+  font-size:.78rem;
+  font-weight:750;
+}
+.tool-indicateurs .favorite-location-remove{
+  padding:5px 9px 6px 5px;
+  font-size:1.05rem;
+  line-height:1;
+  color:var(--muted);
+}
+.tool-indicateurs .favorite-location-chip:hover{
+  border-color:var(--sam);
+  background:var(--sam-light);
+}
+
+/* Période personnalisée du déficit climatique */
+.tool-indicateurs .deficit-controls{
+  align-items:end;
+}
+.tool-indicateurs .custom-date-range{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  align-items:end;
+}
+.tool-indicateurs .custom-date-range.hidden{display:none}
+.tool-indicateurs .deficit-range-message{
+  flex-basis:100%;
+  min-height:18px;
+  color:var(--sam);
+  font-size:.8rem;
+  font-weight:700;
+}
+@media(max-width:720px){
+  .tool-indicateurs .favorite-locations-wrap{
+    align-items:flex-start;
+  }
+  .tool-indicateurs .favorite-locations{
+    width:100%;
+  }
+  .tool-indicateurs .favorite-location-chip{
+    max-width:100%;
+  }
+  .tool-indicateurs .favorite-location-open{
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    max-width:230px;
+  }
+  .tool-indicateurs .custom-date-range{
+    width:100%;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+  }
+  .tool-indicateurs .custom-date-range.hidden{display:none}
+  .tool-indicateurs .custom-date-range label,
+  .tool-indicateurs .custom-date-range input{
+    width:100%;
+  }
+}
+/* ==========================================================================
+   SAM Indicateurs agroclimatiques — vue d'ensemble (maquette)
+   ========================================================================== */
+.tool-indicateurs .ind { display: block; }
+
+.tool-indicateurs .ind-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  margin: 0 0 14px;
+  border-bottom: 1px solid var(--sam-line);
+  scrollbar-width: none;
+}
+.tool-indicateurs .ind-tabs::-webkit-scrollbar { display: none; }
+.tool-indicateurs .ind-tab {
+  position: relative;
+  flex: none;
+  padding: 10px 22px 13px;
+  border: 0;
+  background: transparent;
+  color: var(--sam-ink);
+  font-size: .98rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.tool-indicateurs .ind-tab:first-child { padding-left: 24px; }
+.tool-indicateurs .ind-tab.is-active { color: var(--sam-red-700); }
+.tool-indicateurs .ind-tab.is-active::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--sam-red-700);
+}
+.tool-indicateurs .ind-tab:hover:not(.is-active) { color: var(--sam-red-800); }
+
+.tool-indicateurs .ind-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 16px;
+  color: var(--sam-muted);
+  font-size: .84rem;
+}
+.tool-indicateurs .ind-status.is-error { color: var(--sam-red-700); }
+.tool-indicateurs .ind-refresh {
+  flex: none;
+  padding: 5px 12px;
+  border: 1px solid var(--sam-line);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--sam-ink-2);
+  font-size: .82rem;
+  font-weight: 600;
+}
+.tool-indicateurs .ind-refresh:hover { border-color: #cbd0d6; }
+.tool-indicateurs .ind-refresh:disabled { opacity: .55; }
+
+.tool-indicateurs .ind-panel { display: none; }
+.tool-indicateurs .ind-panel.is-active { display: block; }
+
+/* Indicateurs clés */
+.tool-indicateurs .ind-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.tool-indicateurs .ind-kpi {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 16px 16px 18px;
+  border: 1px solid var(--sam-line);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: var(--sam-shadow-sm);
+  text-align: center;
+}
+.tool-indicateurs .ind-kpi-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  align-self: stretch;
+  margin-bottom: 8px;
+  color: var(--sam-ink);
+  font-size: .9rem;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+.tool-indicateurs .ind-kpi-head span { overflow: hidden; text-overflow: ellipsis; }
+.tool-indicateurs .ind-kpi-head .sam-icon { margin-left: 2px; }
+.tool-indicateurs .ind-kpi-value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--sam-red-700);
+  font-size: 1.62rem;
+  font-weight: 650;
+  letter-spacing: -.01em;
+  line-height: 1.15;
+}
+.tool-indicateurs .ind-kpi-value small { font-size: 1.05rem; font-weight: 600; }
+.tool-indicateurs .ind-kpi-caption { color: var(--sam-ink-2); font-size: .88rem; }
+.tool-indicateurs .ind-delta {
+  display: inline-flex;
+  align-items: center;
+  min-width: 52px;
+  justify-content: center;
+  margin-top: 6px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: .84rem;
+  font-weight: 650;
+  background: #f1f2f4;
+  color: var(--sam-ink-2);
+}
+.tool-indicateurs .ind-delta.is-up { background: var(--sam-green-50); color: var(--sam-green-700); }
+.tool-indicateurs .ind-delta.is-down { background: var(--sam-red-50); color: var(--sam-red-700); }
+.tool-indicateurs .ind-kpi-foot { color: var(--sam-ink-2); font-size: .82rem; }
+
+.tool-indicateurs .ind-note { margin: -6px 0 14px; color: var(--sam-muted); font-size: .84rem; }
+.tool-indicateurs .ind-note:empty { display: none; }
+
+/* Cartes graphiques */
+.tool-indicateurs .ind-charts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.tool-indicateurs .ind-card {
+  padding: 18px 20px 14px;
+  border: 1px solid var(--sam-line);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: var(--sam-shadow-sm);
+}
+.tool-indicateurs .ind-card-head { display: flex; align-items: center; flex-wrap: nowrap; gap: 10px; }
+.tool-indicateurs .ind-card-head h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  color: var(--sam-red-700);
+  font-size: .97rem;
+  font-weight: 650;
+  line-height: 1.3;
+}
+.tool-indicateurs .ind-info {
+  display: inline-flex;
+  padding: 2px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--sam-ink-2);
+}
+.tool-indicateurs .ind-info:hover { color: var(--sam-red-700); }
+.tool-indicateurs .ind-seg { display: inline-flex; border: 1px solid var(--sam-line); border-radius: 8px; overflow: hidden; }
+.tool-indicateurs .ind-seg { flex: none; }
+.tool-indicateurs .ind-seg button {
+  padding: 6px 11px;
+  border: 0;
+  border-right: 1px solid var(--sam-line);
+  background: #fff;
+  color: var(--sam-ink);
+  font-size: .84rem;
+  font-weight: 500;
+}
+.tool-indicateurs .ind-seg button:last-child { border-right: 0; }
+.tool-indicateurs .ind-seg button.is-active { background: var(--sam-red-700); color: #fff; font-weight: 600; }
+.tool-indicateurs .ind-seg button:hover:not(.is-active) { background: var(--sam-bg-soft); }
+.tool-indicateurs .ind-more-wrap { position: relative; }
+.tool-indicateurs .ind-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 32px;
+  border: 1px solid var(--sam-line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--sam-red-700);
+}
+.tool-indicateurs .ind-more-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  display: grid;
+  min-width: 250px;
+  padding: 6px;
+  border: 1px solid var(--sam-line);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: var(--sam-shadow-lg);
+}
+.tool-indicateurs .ind-more-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  font-size: .88rem;
+  text-align: left;
+}
+.tool-indicateurs .ind-more-menu button:hover { background: var(--sam-bg-soft); }
+.tool-indicateurs .ind-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  margin: 12px 0 4px 6px;
+  color: var(--sam-ink-2);
+  font-size: .8rem;
+}
+.tool-indicateurs .ind-legend-line { display: inline-block; width: 22px; height: 0; border-top: 2.5px solid #db0b1f; margin-left: 4px; }
+.tool-indicateurs .ind-legend-line.is-dashed { border-top: 2px dashed rgba(219,11,31,.55); margin-left: 14px; }
+.tool-indicateurs .ind-legend-box { display: inline-block; width: 12px; height: 9px; border-radius: 2px; margin-left: 4px; }
+.tool-indicateurs .ind-legend-box + .ind-legend-box, .tool-indicateurs .ind-legend-box.is-et0 { margin-left: 14px; }
+.tool-indicateurs .ind-legend-box.is-rain { background: #c5011a; margin-left: 4px; }
+.tool-indicateurs .ind-legend-box.is-et0 { background: #57a53d; }
+.tool-indicateurs .ind-legend-agg { color: var(--sam-muted); }
+.tool-indicateurs .ind-chart { position: relative; height: 270px; }
+.tool-indicateurs .ind-info-box {
+  margin-top: 14px;
+  padding: 12px 16px;
+  border: 1px solid var(--sam-line);
+  border-left: 3px solid var(--sam-red-700);
+  border-radius: 8px;
+  background: var(--sam-bg-soft);
+  color: var(--sam-ink-2);
+  font-size: .88rem;
+}
+.tool-indicateurs .ind-info-box p { margin: 0; }
+
+/* Onglets historiques : on aligne les panneaux sur le cadre */
+.tool-indicateurs .panel { border-radius: 12px; box-shadow: var(--sam-shadow-sm); }
+.tool-indicateurs .section-heading { margin-bottom: 14px; }
+.tool-indicateurs .section-heading h2 { color: var(--sam-ink); font-size: 1.25rem; }
+
+@media (max-width: 1280px) {
+  .tool-indicateurs .ind-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 1101px) and (max-width: 1500px) {
+  .tool-indicateurs .ind-card-head { flex-wrap: wrap; }
+  .tool-indicateurs .ind-card-head h3 { flex-basis: 100%; }
+}
+@media (max-width: 1100px) {
+  .tool-indicateurs .ind-charts { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .tool-indicateurs .ind-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .tool-indicateurs .ind-kpi { padding: 12px 10px 14px; }
+  .tool-indicateurs .ind-kpi-head { gap: 8px; font-size: .84rem; margin-bottom: 4px; }
+  .tool-indicateurs .ind-kpi-head .sam-icon { margin-left: 0; }
+  .tool-indicateurs .ind-kpi-value { font-size: 1.35rem; }
+  .tool-indicateurs .ind-kpi:last-child { grid-column: 1 / -1; }
+  .tool-indicateurs .ind-tab { padding: 9px 14px 12px; font-size: .92rem; }
+  .tool-indicateurs .ind-tab:first-child { padding-left: 8px; }
+  .tool-indicateurs .ind-card { padding: 14px 12px 10px; }
+  .tool-indicateurs .ind-card-head { flex-wrap: wrap; }
+  .tool-indicateurs .ind-card-head h3 { flex-basis: 100%; }
+  .tool-indicateurs .ind-chart { height: 240px; }
+}

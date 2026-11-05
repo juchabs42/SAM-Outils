@@ -1,0 +1,220 @@
+/* Styles de l'ancienne appli « irrigation », limités au conteneur .tool-irrigation (généré). */
+
+.tool-irrigation{
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  color:#2a1d21;
+  --red:#D30D43;
+  --red-dark:#9F0A32;
+  --red-soft:#FCE7ED;
+  --red-border:#F3CBD6;
+}
+.tool-irrigation *{box-sizing:border-box}.tool-irrigation button,.tool-irrigation input,.tool-irrigation select{font:inherit}
+.tool-irrigation .top-actions{display:flex;gap:8px;align-items:center}.tool-irrigation .ghost-button,.tool-irrigation .icon-button{border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:#fff;border-radius:12px;font-weight:700;cursor:pointer}.tool-irrigation .ghost-button{padding:10px 12px}.tool-irrigation .icon-button{width:42px;height:42px;font-size:1.3rem}.tool-irrigation .card{background:#fff;border-radius:20px;padding:20px;margin-bottom:16px;box-shadow:0 10px 30px rgba(88,42,51,.08)}
+.tool-irrigation .eyebrow{margin:0 0 5px;color:var(--red);font-size:.74rem;font-weight:900;letter-spacing:.11em;text-transform:uppercase}.tool-irrigation .muted{color:#75686c;font-size:.86rem}.tool-irrigation .center{text-align:center}
+.tool-irrigation h2{margin:0 0 14px}.tool-irrigation .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.tool-irrigation .form-grid label{display:grid;gap:7px;font-size:.88rem;font-weight:700;color:#5f5054}.tool-irrigation .form-grid input,.tool-irrigation .form-grid select{width:100%;border:1px solid #d9cdd0;border-radius:11px;padding:11px;background:#fff}
+.tool-irrigation .button-row{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}.tool-irrigation .primary-button,.tool-irrigation .secondary-button{border:0;border-radius:12px;padding:12px 16px;font-weight:800;cursor:pointer}.tool-irrigation .primary-button{background:var(--red);color:#fff}.tool-irrigation .secondary-button{background:var(--red-soft);color:var(--red-dark);border:1px solid var(--red-border)}
+.tool-irrigation .result-card{border-top:6px solid var(--red)}.tool-irrigation .main-result{text-align:center;padding:22px;background:var(--red-soft);border-radius:16px;margin:12px 0 16px}.tool-irrigation .main-result strong{display:block;color:var(--red);font-size:2.4rem}.tool-irrigation .main-result span{color:#6f5a60}
+.tool-irrigation .result-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.tool-irrigation .result-grid article{padding:16px;border-radius:15px;background:#faf7f8;border:1px solid #eee5e7}.tool-irrigation .result-grid span{display:block;color:#74676b;font-size:.84rem}.tool-irrigation .result-grid strong{display:block;margin-top:6px;font-size:1.2rem}
+
+.tool-irrigation .legend{font-size:.82rem;color:#75686c}
+.tool-irrigation canvas{width:100%;display:block}.tool-irrigation .formula-card p{margin:8px 0}.tool-irrigation .error{background:#ffe8e8;color:#8d1e2d;padding:13px;border-radius:12px}.tool-irrigation .attribution{text-align:center;color:#86787c;font-size:.75rem}
+@media(max-width:680px){
+  .tool-irrigation .form-grid,.tool-irrigation .result-grid{grid-template-columns:1fr}
+  .tool-irrigation .ghost-button{font-size:.78rem}
+}
+
+.tool-irrigation .period-preview{
+  margin-top:14px;
+  padding:13px 15px;
+  border-radius:13px;
+  background:#FCE7ED;
+  color:#9F0A32;
+}
+.tool-irrigation .result-period{
+  margin:0 0 12px;
+  text-align:center;
+  color:#75686c;
+  font-weight:700;
+}
+
+/* Interface unique */
+.tool-irrigation .top-actions{display:flex;align-items:center}
+.tool-irrigation .card .button-row{margin-top:14px}
+
+.tool-irrigation .subheading{
+  margin:22px 0 12px;
+  padding-bottom:7px;
+  border-bottom:1px solid #F3CBD6;
+  color:#9F0A32;
+  font-size:1rem;
+}
+
+
+.tool-irrigation .field-help{
+  display:block;
+  margin-top:2px;
+  color:#7b6b70;
+  font-size:.78rem;
+  font-weight:500;
+  line-height:1.35;
+}
+.tool-irrigation .rain-help{
+  margin:10px 0 0;
+  padding:11px 13px;
+  border-left:4px solid var(--red);
+  border-radius:9px;
+  background:var(--red-soft);
+  color:#9F0A32;
+  font-size:.86rem;
+  line-height:1.45;
+}
+.tool-irrigation .info-box{
+  margin-top:10px;
+  padding:10px 13px;
+  border:1px solid #F3CBD6;
+  border-radius:11px;
+  background:#fff;
+  color:#5f5054;
+  font-size:.84rem;
+}
+.tool-irrigation .info-box summary{
+  cursor:pointer;
+  color:#9F0A32;
+  font-weight:800;
+}
+.tool-irrigation .info-box p{
+  margin:9px 0 2px;
+  line-height:1.45;
+}
+
+
+
+/* Localisation — fonctionnement aligné sur SAM indic. */
+.tool-irrigation .irrigation-location-panel{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:14px 18px;
+  align-items:center;
+  padding:16px;
+  border:1px solid #F3CBD6;
+  border-radius:14px;
+  background:#faf7f8;
+}
+.tool-irrigation .location-details{
+  margin:0;
+  color:#5f5054;
+  font-weight:700;
+}
+.tool-irrigation .location-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.tool-irrigation .place-search-form.hidden{display:none}
+.tool-irrigation .place-search-form{
+  grid-column:1/-1;
+  display:grid;
+  grid-template-columns:minmax(220px,1fr) auto;
+  align-items:end;
+  gap:10px;
+  padding-top:14px;
+  border-top:1px solid #F3CBD6;
+}
+.tool-irrigation .place-search-form label{
+  display:grid;
+  gap:7px;
+  color:#5f5054;
+  font-size:.88rem;
+  font-weight:700;
+}
+.tool-irrigation .place-search-form input{
+  width:100%;
+  border:1px solid #d9cdd0;
+  border-radius:11px;
+  padding:11px;
+  background:#fff;
+}
+.tool-irrigation .place-search-results{
+  grid-column:1/-1;
+  display:grid;
+  gap:7px;
+  max-height:300px;
+  overflow:auto;
+}
+.tool-irrigation .place-result{
+  display:grid;
+  gap:2px;
+  width:100%;
+  padding:11px 12px;
+  border:1px solid #d9cdd0;
+  border-radius:10px;
+  background:#fff;
+  color:#2a1d21;
+  text-align:left;
+  cursor:pointer;
+}
+.tool-irrigation .place-result:hover,.tool-irrigation .place-result:focus-visible{
+  border-color:#D30D43;
+  background:#FCE7ED;
+}
+.tool-irrigation .place-result strong{font-size:.9rem}
+.tool-irrigation .place-result span,.tool-irrigation .place-search-empty{
+  color:#75686c;
+  font-size:.76rem;
+}
+.tool-irrigation .place-search-empty{margin:4px 0}
+.tool-irrigation .location-message{
+  grid-column:1/-1;
+  min-height:20px;
+  color:#D30D43;
+  font-size:.85rem;
+  font-weight:700;
+}
+@media(max-width:680px){
+  .tool-irrigation .irrigation-location-panel{grid-template-columns:1fr}
+  .tool-irrigation .location-actions,.tool-irrigation .place-search-form{display:grid;grid-template-columns:1fr}
+  .tool-irrigation .place-search-results{grid-column:1}
+}
+
+/* Thème SAM Irrigation — basé sur le rouge du logo fourni */
+.tool-irrigation .primary-button:hover{filter:brightness(.94)}
+.tool-irrigation .secondary-button:hover{background:#F9DDE5}
+.tool-irrigation .form-grid input:focus,
+.tool-irrigation .form-grid select:focus,
+.tool-irrigation .place-search-form input:focus{
+  outline:2px solid rgba(211,13,67,.18);
+  border-color:var(--red);
+}
+.tool-irrigation .card{box-shadow:0 10px 30px rgba(211,13,67,.07)}
+
+
+/* Correctif bandeau — dimensions verrouillées */
+
+
+.tool-irrigation .forecast-notice{
+  margin-top:14px;
+  padding:14px 16px;
+  border:1px solid rgba(211,13,67,.20);
+  border-left:4px solid var(--red);
+  border-radius:13px;
+  background:#fff7f9;
+  color:#5f5054;
+}
+.tool-irrigation .forecast-notice strong{
+  display:block;
+  color:var(--red-dark);
+  margin-bottom:5px;
+  font-size:.92rem;
+}
+.tool-irrigation .forecast-notice p{
+  margin:0;
+  font-size:.84rem;
+  line-height:1.45;
+}
+
+/* Intégration dans SAM Outils */
+.tool-irrigation .tool-main { max-width: 1000px; }
+.tool-irrigation .card { border: 1px solid var(--sam-line); border-radius: 12px; box-shadow: var(--sam-shadow-sm); }
+.tool-irrigation .button-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.tool-irrigation .period-preview .muted { font-size: .86rem; }
+.tool-irrigation #weatherChart { width: 100%; }

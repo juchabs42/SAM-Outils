@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="SAM Outils — indicateurs agroclimatiques, irrigation, bilan hydrique, phénologie, tavelure et piégeage. Sud Agro Météo, SudExpé.">
+  <meta name="theme-color" content="#A20117">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SAM Outils">
+  <title>SAM Outils</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="64x64" href="assets/img/favicon-64.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+  <link rel="preload" href="assets/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div class="sam-app" id="sam-app">
+    <aside class="sam-sidebar" id="sam-sidebar" aria-label="Lieux">
+      <div class="sam-sidebar-inner">
+        <a class="sam-brand" href="#/indicateurs" aria-label="SAM — Sud Agro Météo, accueil">
+          <img src="assets/img/logo-sam-blanc.png" alt="SAM — Sud Agro Météo" width="210" height="124">
+        </a>
+
+        <form class="sam-search" id="sam-side-search" role="search" autocomplete="off">
+          <span class="sam-search-icon" data-icon="search"></span>
+          <input id="sam-side-search-input" type="search" placeholder="Rechercher un lieu" aria-label="Rechercher une commune">
+        </form>
+        <div class="sam-side-results" id="sam-side-results" aria-live="polite"></div>
+
+        <div class="sam-side-title"><span data-icon="layers"></span>Mes lieux</div>
+        <ul class="sam-places" id="sam-places"></ul>
+        <button class="sam-side-action" id="sam-side-gps" type="button"><span data-icon="gps"></span>Utiliser ma position</button>
+        <p class="sam-side-note">Les agribases (stations connectées) s’afficheront ici dès qu’elles seront disponibles.</p>
+
+        <div class="sam-side-foot">
+          <span class="sam-side-foot-icon" data-icon="info"></span>
+          <div class="sam-side-foot-text">
+            <span id="sam-version">SAM v2.0.0</span>
+            <span>© Sud Agro Météo · prototype</span>
+          </div>
+          <button class="sam-install hidden" id="sam-install" type="button" title="Installer l’application"><span data-icon="install"></span></button>
+          <button class="sam-collapse" id="sam-collapse" type="button" aria-label="Replier le menu" title="Replier le menu"><span data-icon="chevronLeft"></span></button>
+        </div>
+      </div>
+    </aside>
+    <div class="sam-drawer-backdrop" id="sam-drawer-backdrop" hidden></div>
+
+    <div class="sam-main-col">
+      <header class="sam-topbar">
+        <button class="sam-burger" id="sam-burger" type="button" aria-label="Ouvrir le menu" aria-controls="sam-sidebar" aria-expanded="false"><span data-icon="menu"></span></button>
+        <button class="sam-expand" id="sam-expand" type="button" aria-label="Déplier le menu" title="Déplier le menu"><span data-icon="chevronRight"></span></button>
+        <nav class="sam-topnav" aria-label="Sections">
+          <span class="sam-topnav-link is-disabled" title="Bientôt : données des stations connectées" aria-disabled="true">Données</span>
+          <a class="sam-topnav-link is-active" href="#/indicateurs" aria-current="page">Outils SAM</a>
+        </nav>
+        <div class="sam-topright">
+          <span class="sam-top-item is-disabled" title="Bientôt : cartographie des stations" aria-disabled="true"><span data-icon="map"></span><span class="sam-top-label">Cartographie</span></span>
+          <span class="sam-top-item sam-perso hidden" id="sam-perso" title="Compte connecté"><span data-icon="user"></span><span class="sam-top-label" id="sam-perso-email"></span></span>
+          <button class="sam-top-item sam-auth-button" id="sam-auth-button" type="button"><span data-icon="login" id="sam-auth-icon"></span><span class="sam-top-label" id="sam-auth-label">Connexion</span></button>
+        </div>
+      </header>
+
+      <main class="sam-content" id="sam-content">
+        <div class="sam-page-head">
+          <h1 class="sam-page-title" id="sam-title">SAM</h1>
+          <span class="sam-mode-pill hidden" id="sam-mode-pill"></span>
+        </div>
+
+        <nav class="sam-tools" id="sam-tools" aria-label="Outils SAM"></nav>
+
+        <section class="sam-filters" id="sam-filters" aria-label="Filtres">
+          <div class="sam-filter" id="sam-filter-location">
+            <span class="sam-filter-label" id="sam-location-label">Localisation favorite</span>
+            <button class="sam-filter-button" id="sam-location-button" type="button" aria-haspopup="dialog" aria-expanded="false">
+              <span class="sam-filter-icon" data-icon="pin"></span>
+              <span class="sam-filter-value" id="sam-location-value">—</span>
+              <span class="sam-filter-caret" data-icon="chevronDown"></span>
+            </button>
+            <div class="sam-popover hidden" id="sam-location-popover" role="dialog" aria-label="Choisir un lieu"></div>
+          </div>
+          <div class="sam-filter" id="sam-filter-period">
+            <span class="sam-filter-label">Période</span>
+            <button class="sam-filter-button" id="sam-period-button" type="button" aria-haspopup="dialog" aria-expanded="false">
+              <span class="sam-filter-icon" data-icon="calendar"></span>
+              <span class="sam-filter-value" id="sam-period-value">—</span>
+              <span class="sam-filter-caret" data-icon="chevronDown"></span>
+            </button>
+            <div class="sam-popover hidden" id="sam-period-popover" role="dialog" aria-label="Choisir une période"></div>
+          </div>
+          <p class="sam-filter-hint" id="sam-filter-hint"></p>
+        </section>
+
+        <div class="sam-tool-loading hidden" id="sam-tool-loading"><span class="sam-spinner"></span>Chargement…</div>
+        <div id="sam-tool" class="tool-root"></div>
+      </main>
+    </div>
+  </div>
+
+  <dialog class="sam-dialog" id="sam-login" aria-labelledby="sam-login-title">
+    <form class="sam-login-form" id="sam-login-form" method="dialog">
+      <div class="sam-dialog-head">
+        <div>
+          <p class="sam-kicker">Espace administrateur</p>
+          <h2 id="sam-login-title">Connexion</h2>
+        </div>
+        <button class="sam-icon-button" type="button" id="sam-login-close" aria-label="Fermer"><span data-icon="close"></span></button>
+      </div>
+      <p class="sam-dialog-text">La consultation est libre. La connexion sert aux comptes SudExpé pour saisir et modifier les données (phénologie, tavelure, piégeage) et pour retrouver ses parcelles de bilan hydrique.</p>
+      <label class="sam-field">Adresse mail
+        <input id="sam-login-email" type="email" autocomplete="username" required>
+      </label>
+      <label class="sam-field">Mot de passe
+        <input id="sam-login-password" type="password" autocomplete="current-password" required>
+      </label>
+      <p class="sam-form-message" id="sam-login-message" role="status"></p>
+      <button class="sam-button sam-button-primary" type="submit" id="sam-login-submit">Se connecter</button>
+      <p class="sam-dialog-note">Pas d’inscription en ligne : les comptes sont créés par l’administrateur SudExpé.</p>
+    </form>
+  </dialog>
+
+  <div class="sam-toast" id="sam-toast" role="status" aria-live="polite"></div>
+
+  <noscript><p class="sam-noscript">SAM Outils nécessite JavaScript.</p></noscript>
+
+  <script src="config.js"></script>
+  <script src="assets/vendor/supabase-2.118.0.js"></script>
+  <script src="assets/vendor/chart-4.4.7.umd.js"></script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
