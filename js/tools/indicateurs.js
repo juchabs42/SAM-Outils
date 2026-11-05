@@ -464,7 +464,7 @@ export async function mount(root, ctx) {
   }
 
   // --- Vue d'ensemble -------------------------------------------------------
-  function deltaBadge(id, current, previous, mode) {
+  function deltaBadge(id, current, previous, mode, unit = '', minBase = 0) {
     const el = $(id);
     el.className = 'ind-delta';
     if (!Number.isFinite(current) || !Number.isFinite(previous)) {
@@ -478,16 +478,21 @@ export async function mount(root, ctx) {
       value = current - previous;
       text = `${value > 0 ? '+' : value < 0 ? '−' : ''}${formatNumber(Math.abs(value), 1)} °C`;
     } else {
-      if (previous === 0) {
-        el.textContent = current === 0 ? '0 %' : 'nouveau';
-        el.classList.add('is-neutral');
+      const pct = previous === 0 ? Infinity : (current - previous) / Math.abs(previous) * 100;
+      if (Math.abs(previous) < minBase || !Number.isFinite(pct) || Math.abs(pct) > 300) {
+        // Base trop faible pour un pourcentage parlant : écart absolu.
+        const diff = current - previous;
+        const digits = Math.abs(diff) >= 10 ? 0 : 1;
+        text = `${diff > 0 ? '+' : diff < 0 ? '−' : ''}${formatNumber(Math.abs(diff), digits)} ${unit}`.trim();
+        el.textContent = text;
+        el.title = `Période précédente : ${formatNumber(previous, 1)} ${unit}`.trim();
+        el.classList.add(Math.abs(diff) < 0.05 ? 'is-neutral' : diff > 0 ? 'is-up' : 'is-down');
         return;
       }
-      value = (current - previous) / Math.abs(previous) * 100;
-      const rounded = Math.round(value);
-      text = `${rounded > 0 ? '+' : rounded < 0 ? '−' : ''}${Math.abs(rounded)} %`;
-      value = rounded;
+      value = Math.round(pct);
+      text = `${value > 0 ? '+' : value < 0 ? '−' : ''}${Math.abs(value)} %`;
     }
+    el.title = mode === 'absolute' ? `Période précédente : ${formatNumber(previous, 1)} °C` : `Période précédente : ${formatNumber(previous, 1)} ${unit}`.trim();
     el.textContent = text;
     el.classList.add(Math.abs(value) < (mode === 'absolute' ? 0.05 : 0.5) ? 'is-neutral' : value > 0 ? 'is-up' : 'is-down');
   }
@@ -565,11 +570,11 @@ export async function mount(root, ctx) {
     setValue('kpiTemp', cur.temp, 1);
     setValue('kpiRh', cur.rh, 0);
     setValue('kpiWind', cur.wind, 1);
-    deltaBadge('kpiEt0Delta', cur.et0, prev.et0, 'relative');
-    deltaBadge('kpiRainDelta', cur.rain, prev.rain, 'relative');
+    deltaBadge('kpiEt0Delta', cur.et0, prev.et0, 'relative', 'mm', 1);
+    deltaBadge('kpiRainDelta', cur.rain, prev.rain, 'relative', 'mm', 2);
     deltaBadge('kpiTempDelta', cur.temp, prev.temp, 'absolute');
-    deltaBadge('kpiRhDelta', cur.rh, prev.rh, 'relative');
-    deltaBadge('kpiWindDelta', cur.wind, prev.wind, 'relative');
+    deltaBadge('kpiRhDelta', cur.rh, prev.rh, 'relative', '%', 1);
+    deltaBadge('kpiWindDelta', cur.wind, prev.wind, 'relative', 'm/s', 0.3);
 
     const today = todayISO();
     const forecastDays = dataset.cur.daily.filter(d => d.date > today).length;
