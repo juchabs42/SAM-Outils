@@ -6,13 +6,13 @@ import { places, searchPlaces, locateMe, placeLabel } from './places.js';
 import { period } from './period.js';
 import { storage, debounce, escapeHtml, formatDateShort, loadScript, loadCss, VENDOR, isISODate, todayISO } from './util.js';
 
-const APP_VERSION = '2026-11-05.4';
+const APP_VERSION = '2026-11-06.1';
 
 export const TOOLS = [
-  { id: 'indicateurs', title: 'SAM Indicateurs agroclimatiques', card: 'Indicateurs <br>agroclimatiques', icon: 'toolIndicateurs' },
-  { id: 'irrigation', title: 'SAM Programmation irrigation', card: 'Programmation <br>irrigation', icon: 'toolIrrigation' },
+  { id: 'indicateurs', title: 'SAM Indicateurs agroclimatiques', card: 'Indicateurs <br>agro&shy;clima&shy;tiques', icon: 'toolIndicateurs' },
+  { id: 'irrigation', title: 'SAM Programmation irrigation', card: 'Program&shy;mation <br>irrigation', icon: 'toolIrrigation' },
   { id: 'bilan', title: 'SAM Bilan hydrique', card: 'Bilan <br>hydrique', icon: 'toolBilan' },
-  { id: 'phenologie', title: 'SAM Suivi phénologique', card: 'Suivi <br>phénologique', icon: 'toolPheno', admin: true },
+  { id: 'phenologie', title: 'SAM Suivi phénologique', card: 'Suivi <br>phéno&shy;logique', icon: 'toolPheno', admin: true },
   { id: 'tavelure', title: 'SAM Tavelure', card: 'Tavelure', icon: 'toolTavelure', admin: true },
   { id: 'piegeage', title: 'SAM Piégeage', card: 'Piégeage', icon: 'toolPiegeage', admin: true }
 ];

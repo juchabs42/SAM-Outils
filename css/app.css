@@ -385,7 +385,7 @@ button.sam-top-item:hover { background: rgba(255,255,255,.12); }
 .sam-tool-card.is-active { border: 2px solid var(--sam-red-700); padding: 13px 13px; color: var(--sam-red-700); box-shadow: 0 6px 18px rgba(197, 1, 26, .12); }
 .sam-tool-card-icon { flex: none; display: inline-flex; }
 .sam-tool-card-icon img { display: block; width: 40px; height: 40px; object-fit: contain; }
-.sam-tool-card-label { min-width: 0; font-size: .95rem; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.sam-tool-card-label { min-width: 0; font-size: .95rem; font-weight: 600; line-height: 1.3; overflow-wrap: normal; hyphens: manual; }
 
 /* Filtres */
 .sam-filters {
@@ -578,8 +578,16 @@ button.sam-top-item:hover { background: rgba(255,255,255,.12); }
 /* --------------------------------------------------------------------------
    Adaptations écran
    -------------------------------------------------------------------------- */
+@media (max-width: 1760px) {
+  .sam-tools { gap: 12px; }
+  .sam-tool-card { gap: 10px; padding: 12px; }
+  .sam-tool-card.is-active { padding: 11px; }
+  .sam-tool-card-icon img { width: 34px; height: 34px; }
+  .sam-tool-card-label { font-size: .9rem; }
+}
+
 @media (max-width: 1360px) {
-  .sam-tools { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .sam-tools { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 }
 
 @media (max-width: 1100px) {
