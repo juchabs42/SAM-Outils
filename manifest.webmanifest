@@ -1,16 +1,93 @@
 {
+  "id": "./",
   "name": "SAM Outils — Sud Agro Météo",
   "short_name": "SAM Outils",
   "description": "Indicateurs agroclimatiques, programmation de l'irrigation, bilan hydrique, phénologie, tavelure et piégeage.",
   "lang": "fr",
+  "dir": "ltr",
   "start_url": "./#/indicateurs",
   "scope": "./",
   "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "any",
   "background_color": "#ffffff",
   "theme_color": "#A20117",
+  "categories": [
+    "weather",
+    "productivity",
+    "utilities"
+  ],
   "icons": [
-    { "src": "assets/img/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "assets/img/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "assets/img/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "assets/img/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/img/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/img/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Indicateurs agroclimatiques",
+      "short_name": "Indicateurs",
+      "url": "./#/indicateurs",
+      "icons": [
+        {
+          "src": "assets/img/tools/indicateurs.png",
+          "sizes": "112x112",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Programmation irrigation",
+      "short_name": "Irrigation",
+      "url": "./#/irrigation",
+      "icons": [
+        {
+          "src": "assets/img/tools/irrigation.png",
+          "sizes": "112x112",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Suivi phénologique",
+      "short_name": "Phénologie",
+      "url": "./#/phenologie",
+      "icons": [
+        {
+          "src": "assets/img/tools/phenologie.png",
+          "sizes": "112x112",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Piégeage",
+      "short_name": "Piégeage",
+      "url": "./#/piegeage",
+      "icons": [
+        {
+          "src": "assets/img/tools/piegeage.png",
+          "sizes": "112x112",
+          "type": "image/png"
+        }
+      ]
+    }
   ]
 }

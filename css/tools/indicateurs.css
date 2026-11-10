@@ -582,8 +582,8 @@
 .tool-indicateurs .ind-legend-line.is-dashed { border-top: 2px dashed rgba(219,11,31,.55); margin-left: 14px; }
 .tool-indicateurs .ind-legend-box { display: inline-block; width: 12px; height: 9px; border-radius: 2px; margin-left: 4px; }
 .tool-indicateurs .ind-legend-box + .ind-legend-box, .tool-indicateurs .ind-legend-box.is-et0 { margin-left: 14px; }
-.tool-indicateurs .ind-legend-box.is-rain { background: #c5011a; margin-left: 4px; }
-.tool-indicateurs .ind-legend-box.is-et0 { background: #57a53d; }
+.tool-indicateurs .ind-legend-box.is-rain { background: #3b8ad9; margin-left: 4px; }
+.tool-indicateurs .ind-legend-box.is-et0 { background: #f0892c; }
 .tool-indicateurs .ind-legend-agg { color: var(--sam-muted); }
 .tool-indicateurs .ind-chart { position: relative; height: 270px; }
 .tool-indicateurs .ind-info-box {

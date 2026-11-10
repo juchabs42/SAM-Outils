@@ -116,12 +116,12 @@ const TEMPLATE = `
   <section class="ind-panel" data-panel="methodes">
     <div class="section-heading"><div><h2>Méthodes</h2></div></div>
     <div class="method-grid">
-      <article class="method-card"><h3>Vue d’ensemble</h3><p>Cumuls (ET₀, pluie) et moyennes (température, humidité relative, vent) calculés sur la période choisie, comparés à la période de même durée qui la précède immédiatement.</p></article>
+      <article class="method-card"><h3>Vue d’ensemble</h3><p>Cumuls (ET₀, pluie) et moyennes (température, humidité relative, vent) calculés sur la période choisie. Comparaison : pour une période de 31 jours au plus, avec la période de même durée juste avant (semaine précédente, mois précédent…) ; au-delà, avec les mêmes dates l’année précédente, pour comparer des saisons identiques. La période de comparaison est rappelée sous les indicateurs.</p></article>
       <article class="method-card"><h3>Prévisions météo</h3><p>Les prévisions de température, pluie, humidité et vent sont récupérées pour le lieu choisi. Les graphiques présentent leur évolution horaire, les cartes résument les valeurs quotidiennes.</p></article>
       <article class="method-card"><h3>Déficit climatique</h3><p>Calcul journalier ET₀ − pluie, cumulé sur la période sélectionnée. Le bilan peut devenir négatif lorsque les pluies cumulées dépassent l’ET₀.</p></article>
       <article class="method-card"><h3>DPV</h3><p>Calculé à partir de la température et de l’humidité relative horaires. La zone de conditions favorables est fixée entre 0,8 et 1,6 kPa.</p></article>
       <article class="method-card"><h3>Indice de contrainte</h3><p>40 % intensité du DPV (moyenne des 3 heures présentant les DPV les plus élevés), 30 % durée avec DPV &gt; 2,5 kPa, 20 % durée de forte chaleur avec température &gt; 35 °C et 10 % ET₀.</p></article>
-      <article class="method-card"><h3>Sources</h3><p>Données Open-Meteo : prévisions et 92 derniers jours (modèles de prévision), historique au-delà (réanalyse ERA5, depuis 1940).</p></article>
+      <article class="method-card"><h3>Sources</h3><p>Données Open-Meteo : prévisions et deux derniers mois environ (modèles de prévision), historique au-delà (réanalyse ERA5, depuis 1940).</p></article>
     </div>
     <div class="warning-box method-warning"><strong>À savoir :</strong> l’indice de contrainte est un indicateur d’aide à l’interprétation. Il donne une idée synthétique des conditions climatiques, mais ne constitue pas un modèle scientifique validé.</div>
   </section>
@@ -133,8 +133,55 @@ function kpiCard(key, icon, label, unit, caption) {
     <strong class="ind-kpi-value"><span id="kpi${key}">—</span><small>${unit}</small></strong>
     <span class="ind-kpi-caption">${caption}</span>
     <span class="ind-delta" id="kpi${key}Delta">—</span>
-    <span class="ind-kpi-foot">vs période précédente</span>
+    <span class="ind-kpi-foot">—</span>
   </article>`;
+}
+
+// ---------------------------------------------------------------------------
+// Période de comparaison des indicateurs
+// ---------------------------------------------------------------------------
+const MONTH_NAMES = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const pad2 = n => String(n).padStart(2, '0');
+function isLeapYear(y) { return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0; }
+function daysInMonth(y, m) { return new Date(Date.UTC(y, m, 0)).getUTCDate(); }
+function shiftYearsISO(iso, years) {
+  const y = Number(iso.slice(0, 4)) + years;
+  const md = iso.slice(5);
+  return md === '02-29' && !isLeapYear(y) ? `${y}-02-28` : `${y}-${md}`;
+}
+
+/**
+ * Période à laquelle on compare la période choisie :
+ * - mois civil complet → mois précédent ;
+ * - jusqu’à 31 jours → période de même durée juste avant (semaine précédente…) ;
+ * - au-delà → mêmes dates l’année précédente (pour comparer des saisons identiques).
+ */
+function comparisonPeriod(start, end) {
+  const length = diffDaysISO(start, end) + 1;
+  const [y, m] = start.split('-').map(Number);
+  if (start.slice(8) === '01' && start.slice(0, 7) === end.slice(0, 7) && Number(end.slice(8)) === daysInMonth(y, m)) {
+    const py = m === 1 ? y - 1 : y;
+    const pm = m === 1 ? 12 : m - 1;
+    const name = `${MONTH_NAMES[pm - 1]} ${py}`;
+    return { start: `${py}-${pad2(pm)}-01`, end: `${py}-${pad2(pm)}-${pad2(daysInMonth(py, pm))}`, short: `vs ${name}`, long: name, against: `à ${name}` };
+  }
+  if (length <= 31) {
+    const short = length === 1 ? 'vs veille' : length === 7 ? 'vs semaine précédente' : `vs ${length} jours précédents`;
+    const long = length === 1 ? 'la veille' : length === 7 ? 'la semaine précédente' : `les ${length} jours précédents`;
+    const against = length === 1 ? 'à la veille' : length === 7 ? 'à la semaine précédente' : `aux ${length} jours précédents`;
+    return { start: addDaysISO(start, -length), end: addDaysISO(start, -1), short, long, against };
+  }
+  const years = Math.max(1, Math.ceil(length / 366));
+  const pStart = shiftYearsISO(start, -years);
+  const pEnd = shiftYearsISO(end, -years);
+  if (years > 1) return { start: pStart, end: pEnd, short: `vs ${years} années précédentes`, long: `les ${years} années précédentes`, against: `aux ${years} années précédentes` };
+  if (start.slice(0, 4) === end.slice(0, 4)) {
+    const py = Number(start.slice(0, 4)) - 1;
+    return { start: pStart, end: pEnd, short: `vs même période ${py}`, long: `la même période en ${py}`, against: `à la même période en ${py}` };
+  }
+  return length >= 365
+    ? { start: pStart, end: pEnd, short: 'vs année précédente', long: 'l’année précédente', against: 'à l’année précédente' }
+    : { start: pStart, end: pEnd, short: 'vs même période l’an passé', long: 'la même période l’an passé', against: 'à la même période l’an passé' };
 }
 
 function segmented(id) {
@@ -237,6 +284,8 @@ const vpdBandsPlugin = {
 // ---------------------------------------------------------------------------
 // Données Open-Meteo
 // ---------------------------------------------------------------------------
+const RAIN_COLOR = '#3b8ad9';
+const ET0_COLOR = '#f0892c';
 const HOURLY_VARS = ['temperature_2m', 'relative_humidity_2m', 'precipitation', 'wind_speed_10m'];
 const DAILY_VARS = ['precipitation_sum', 'et0_fao_evapotranspiration', 'temperature_2m_max', 'temperature_2m_min'];
 const MAX_HOURLY_DAYS = 800;
@@ -284,6 +333,16 @@ function parseDaily(d) {
   }));
 }
 
+// L'API de prévision renvoie past_days jours passés, mais les plus anciens sont vides
+// (null) : seuls les deux derniers mois environ sont réellement fournis. On ne garde
+// donc que la partie remplie ; l'historique (réanalyse) prend le relais avant.
+function trimRecent(daily, hourly) {
+  const first = daily.findIndex(d => Number.isFinite(d.rain) && Number.isFinite(d.et0) && Number.isFinite(d.tmax));
+  if (first < 0) return { daily: [], hourly: [] };
+  const from = daily[first].date;
+  return { daily: daily.slice(first), hourly: hourly.filter(h => h.date >= from) };
+}
+
 function createWeatherStore() {
   let key = null;
   let recent = null;
@@ -316,8 +375,7 @@ function createWeatherStore() {
     try {
       const data = await fetchJson(`https://api.open-meteo.com/v1/forecast?${params}`);
       recent = {
-        hourly: parseHourly(data.hourly),
-        daily: parseDaily(data.daily),
+        ...trimRecent(parseDaily(data.daily), parseHourly(data.hourly)),
         elevation: data.elevation,
         loadedAt: Date.now(),
         offline: false
@@ -327,8 +385,7 @@ function createWeatherStore() {
       const cached = storage.get(cacheKey, null);
       if (!cached) throw error;
       recent = {
-        hourly: parseHourly(cached.hourly),
-        daily: parseDaily(cached.daily),
+        ...trimRecent(parseDaily(cached.daily), parseHourly(cached.hourly)),
         elevation: cached.elevation,
         loadedAt: Date.now(),
         offline: true,
@@ -413,6 +470,7 @@ export async function mount(root, ctx) {
       presets.lastDays(7),
       presets.lastDays(30),
       presets.lastDays(90),
+      presets.lastDays(365, '12 derniers mois'),
       presets.nextDays(7, '7 prochains jours (prévisions)'),
       presets.sinceJanuary()
     ],
@@ -464,6 +522,13 @@ export async function mount(root, ctx) {
   }
 
   // --- Vue d'ensemble -------------------------------------------------------
+  function compareTitle() {
+    const c = dataset?.comparison;
+    if (!c) return 'Période de comparaison';
+    const label = c.long.charAt(0).toUpperCase() + c.long.slice(1);
+    return `${label} (${formatDateShort(c.start, true)} → ${formatDateShort(c.end, true)})`;
+  }
+
   function deltaBadge(id, current, previous, mode, unit = '', minBase = 0) {
     const el = $(id);
     el.className = 'ind-delta';
@@ -485,14 +550,14 @@ export async function mount(root, ctx) {
         const digits = Math.abs(diff) >= 10 ? 0 : 1;
         text = `${diff > 0 ? '+' : diff < 0 ? '−' : ''}${formatNumber(Math.abs(diff), digits)} ${unit}`.trim();
         el.textContent = text;
-        el.title = `Période précédente : ${formatNumber(previous, 1)} ${unit}`.trim();
+        el.title = `${compareTitle()} : ${formatNumber(previous, 1)} ${unit}`.trim();
         el.classList.add(Math.abs(diff) < 0.05 ? 'is-neutral' : diff > 0 ? 'is-up' : 'is-down');
         return;
       }
       value = Math.round(pct);
       text = `${value > 0 ? '+' : value < 0 ? '−' : ''}${Math.abs(value)} %`;
     }
-    el.title = mode === 'absolute' ? `Période précédente : ${formatNumber(previous, 1)} °C` : `Période précédente : ${formatNumber(previous, 1)} ${unit}`.trim();
+    el.title = `${compareTitle()} : ${formatNumber(previous, 1)} ${mode === 'absolute' ? '°C' : unit}`.trim();
     el.textContent = text;
     el.classList.add(Math.abs(value) < (mode === 'absolute' ? 0.05 : 0.5) ? 'is-neutral' : value > 0 ? 'is-up' : 'is-down');
   }
@@ -527,7 +592,7 @@ export async function mount(root, ctx) {
     });
     const rows = [...groups.entries()].map(([key, items]) => ({
       key,
-      label: byMonth ? `${key.slice(5, 7)}/${key.slice(2, 4)}` : formatDayMonth(key),
+      label: byMonth ? `${key.slice(5, 7)}/${key.slice(2, 4)}` : formatDayMonth(items[0].date),
       rain: sum(items.map(i => i.rain)),
       et0: sum(items.map(i => i.et0)),
       from: items[0].date,
@@ -578,10 +643,13 @@ export async function mount(root, ctx) {
 
     const today = todayISO();
     const forecastDays = dataset.cur.daily.filter(d => d.date > today).length;
+    const c = dataset.comparison;
+    root.querySelectorAll('.ind-kpi-foot').forEach(el => { el.textContent = dataset.prevMissing ? 'comparaison indisponible' : c.short; });
     const notes = [];
+    if (!dataset.prevMissing) notes.push(`Écarts calculés par rapport ${c.against}, du ${formatDateShort(c.start, true)} au ${formatDateShort(c.end, true)}.`);
+    else notes.push('Comparaison indisponible : la période de comparaison sort de l’historique disponible (depuis 1940).');
     if (forecastDays) notes.push(`La période inclut ${forecastDays} jour${forecastDays > 1 ? 's' : ''} de prévision.`);
     if (!dataset.cur.hourly) notes.push('Période longue : humidité, vent et DPV ne sont calculés que sur des périodes de moins de deux ans.');
-    if (dataset.prevMissing) notes.push('Comparaison indisponible : la période précédente sort de l’historique disponible.');
     $('ovNote').textContent = notes.join(' ');
     updateSegments();
 
@@ -611,8 +679,8 @@ export async function mount(root, ctx) {
       data: {
         labels: agg.rows.map(r => r.label),
         datasets: [
-          { label: 'Pluie (mm)', data: agg.rows.map(r => r.rain), backgroundColor: '#c5011a', borderRadius: 3, maxBarThickness: 16, categoryPercentage: 0.62, barPercentage: 0.9 },
-          { label: 'ET₀ (mm)', data: agg.rows.map(r => r.et0), backgroundColor: '#57a53d', borderRadius: 3, maxBarThickness: 16, categoryPercentage: 0.62, barPercentage: 0.9 }
+          { label: 'Pluie (mm)', data: agg.rows.map(r => r.rain), backgroundColor: RAIN_COLOR, borderRadius: 3, maxBarThickness: 16, categoryPercentage: 0.62, barPercentage: 0.9 },
+          { label: 'ET₀ (mm)', data: agg.rows.map(r => r.et0), backgroundColor: ET0_COLOR, borderRadius: 3, maxBarThickness: 16, categoryPercentage: 0.62, barPercentage: 0.9 }
         ]
       },
       options: {
@@ -728,8 +796,8 @@ export async function mount(root, ctx) {
       data: {
         labels: agg.rows.map(r => r.label),
         datasets: [
-          { type: 'bar', label: 'ET₀', data: agg.rows.map(r => r.et0), backgroundColor: 'rgba(168,101,22,.62)', yAxisID: 'daily' },
-          { type: 'bar', label: 'Pluie', data: agg.rows.map(r => r.rain), backgroundColor: 'rgba(63,111,147,.62)', yAxisID: 'daily' },
+          { type: 'bar', label: 'ET₀', data: agg.rows.map(r => r.et0), backgroundColor: ET0_COLOR, yAxisID: 'daily' },
+          { type: 'bar', label: 'Pluie', data: agg.rows.map(r => r.rain), backgroundColor: RAIN_COLOR, yAxisID: 'daily' },
           { type: 'line', label: 'Bilan cumulé', data: agg.rows.map(r => cumulByKey.get(r.key)), borderColor: '#7f1d2d', backgroundColor: '#7f1d2d', yAxisID: 'cum', tension: 0.2, pointRadius: agg.rows.length > 60 ? 0 : 2 }
         ]
       },
@@ -842,22 +910,17 @@ export async function mount(root, ctx) {
     const p = ctx.period.get();
     if (!place || !p?.start || !p?.end) return;
     const length = diffDaysISO(p.start, p.end) + 1;
-    const prevEnd = addDaysISO(p.start, -1);
-    const prevStart = addDaysISO(p.start, -length);
+    const comparison = comparisonPeriod(p.start, p.end);
     setStatus(`Chargement des données météo pour ${place.name}…`);
     $('indRefresh').disabled = true;
     try {
       await weather.loadRecent(place, force);
       const wantHourly = length <= 400;
-      const prevAvailable = prevStart >= '1940-01-01';
-      const all = await weather.range(place, prevAvailable ? prevStart : p.start, p.end, { hourly: wantHourly });
+      const prevAvailable = comparison.start >= '1940-01-01';
+      const cur = await weather.range(place, p.start, p.end, { hourly: wantHourly });
+      const previous = prevAvailable ? await weather.range(place, comparison.start, comparison.end, { hourly: wantHourly }) : { daily: [], hourly: null };
       if (token !== renderToken || ctx.scope.disposed) return;
-      const split = (rows, key, from, to) => rows ? rows.filter(r => r[key] >= from && r[key] <= to) : null;
-      dataset = {
-        cur: { daily: split(all.daily, 'date', p.start, p.end), hourly: split(all.hourly, 'date', p.start, p.end) },
-        previous: prevAvailable ? { daily: split(all.daily, 'date', prevStart, prevEnd), hourly: split(all.hourly, 'date', prevStart, prevEnd) } : { daily: [], hourly: null },
-        prevMissing: !prevAvailable
-      };
+      dataset = { cur, previous, comparison, prevMissing: !prevAvailable };
       const rec = weather.recent;
       const when = rec.offline
         ? `hors connexion — données du ${new Date(rec.savedAt).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}`

@@ -34,6 +34,7 @@
         <div class="sam-side-title"><span data-icon="layers"></span>Mes lieux</div>
         <ul class="sam-places" id="sam-places"></ul>
         <button class="sam-side-action" id="sam-side-gps" type="button"><span data-icon="gps"></span>Utiliser ma position</button>
+        <button class="sam-side-action sam-side-install hidden" id="sam-side-install" type="button"><span data-icon="install"></span>Installer l’appli sur cet appareil</button>
         <p class="sam-side-note">Les agribases (stations connectées) s’afficheront ici dès qu’elles seront disponibles.</p>
 
         <div class="sam-side-foot">
@@ -65,6 +66,15 @@
       </header>
 
       <main class="sam-content" id="sam-content">
+        <div class="sam-install-banner hidden" id="sam-install-banner" role="region" aria-label="Installer l’application">
+          <img src="assets/img/icon-192.png" alt="" width="44" height="44">
+          <div class="sam-install-banner-text">
+            <strong>Installer SAM Outils sur ce téléphone</strong>
+            <span>L’appli rejoint vos applications et s’ouvre en plein écran, sans barre d’adresse.</span>
+          </div>
+          <button class="sam-button sam-button-primary" id="sam-install-banner-go" type="button">Installer</button>
+          <button class="sam-icon-button sam-install-banner-close" id="sam-install-banner-close" type="button" aria-label="Masquer"><span data-icon="close"></span></button>
+        </div>
         <div class="sam-page-head">
           <h1 class="sam-page-title" id="sam-title">SAM</h1>
           <span class="sam-mode-pill hidden" id="sam-mode-pill"></span>
@@ -91,6 +101,7 @@
             </button>
             <div class="sam-popover hidden" id="sam-period-popover" role="dialog" aria-label="Choisir une période"></div>
           </div>
+          <div class="sam-filter-actions" id="sam-filter-actions"></div>
           <p class="sam-filter-hint" id="sam-filter-hint"></p>
         </section>
 
@@ -120,6 +131,20 @@
       <button class="sam-button sam-button-primary" type="submit" id="sam-login-submit">Se connecter</button>
       <p class="sam-dialog-note">Pas d’inscription en ligne : les comptes sont créés par l’administrateur SudExpé.</p>
     </form>
+  </dialog>
+
+  <dialog class="sam-dialog" id="sam-install-dialog" aria-labelledby="sam-install-title">
+    <div class="sam-install-dialog">
+      <div class="sam-dialog-head">
+        <div>
+          <p class="sam-kicker">Application</p>
+          <h2 id="sam-install-title">Installer SAM Outils</h2>
+        </div>
+        <button class="sam-icon-button" type="button" id="sam-install-close" aria-label="Fermer"><span data-icon="close"></span></button>
+      </div>
+      <div id="sam-install-steps"></div>
+      <button class="sam-button sam-button-primary" type="button" id="sam-install-ok">J’ai compris</button>
+    </div>
   </dialog>
 
   <div class="sam-toast" id="sam-toast" role="status" aria-live="polite"></div>

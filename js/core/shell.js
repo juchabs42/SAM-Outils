@@ -6,7 +6,7 @@ import { places, searchPlaces, locateMe, placeLabel } from './places.js';
 import { period } from './period.js';
 import { storage, debounce, escapeHtml, formatDateShort, loadScript, loadCss, VENDOR, isISODate, todayISO } from './util.js';
 
-const APP_VERSION = '2026-11-06.1';
+const APP_VERSION = '2026-11-10.1';
 
 export const TOOLS = [
   { id: 'indicateurs', title: 'SAM Indicateurs agroclimatiques', card: 'Indicateurs <br>agro&shy;clima&shy;tiques', icon: 'toolIndicateurs' },
@@ -451,6 +451,8 @@ function createContext(tool, root) {
       onChange(fn) { track(period.onChange((value, info) => { if (!disposed && info?.reason !== 'configure') fn(value, info); })); }
     },
     filters: options => setFilterOptions(options),
+    /** Emplacement à droite de la période pour les boutons propres à l'outil. */
+    filterActions: () => $('sam-filter-actions'),
     ui: { toast, setMode: setModePill, openLogin },
     loadScript,
     vendor: {
@@ -505,6 +507,7 @@ async function mountTool(tool) {
   setModePill('');
   updateToolModePill();
   period.configure(tool.id, null);
+  $('sam-filter-actions').innerHTML = '';
   setFilterOptions({});
   $('sam-tool-loading').classList.remove('hidden');
 
@@ -542,34 +545,112 @@ function handleRoute() {
 // ---------------------------------------------------------------------------
 // Application installable
 // ---------------------------------------------------------------------------
+function detectPlatform() {
+  const ua = navigator.userAgent;
+  const ios = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const android = /android/i.test(ua);
+  if (ios) return { id: 'ios', mobile: true, safari: !/crios|fxios|edgios/i.test(ua) };
+  if (android && /samsungbrowser/i.test(ua)) return { id: 'samsung', mobile: true };
+  if (android && /firefox/i.test(ua)) return { id: 'firefox-android', mobile: true };
+  if (android) return { id: 'android', mobile: true };
+  return { id: 'desktop', mobile: false, firefox: /firefox/i.test(ua), safari: /^((?!chrome|android|edg).)*safari/i.test(ua) };
+}
+
+function installSteps(platform) {
+  const intro = '<p>Une fois installée, SAM Outils apparaît avec vos autres applications et s’ouvre en plein écran, sans barre d’adresse. Elle se met à jour toute seule.</p>';
+  const oldShortcut = '<p>Si vous aviez déjà ajouté un simple raccourci SAM Outils sur l’écran d’accueil, supprimez-le d’abord.</p>';
+  switch (platform.id) {
+    case 'ios':
+      return `${intro}<p class="sam-install-platform">iPhone / iPad</p>
+        <ol>${platform.safari ? '' : '<li>Ouvrez cette page dans <strong>Safari</strong> (copiez l’adresse si besoin).</li>'}
+          <li>Touchez le bouton <strong>Partager</strong> (carré avec une flèche vers le haut), en bas de l’écran.</li>
+          <li>Faites défiler et choisissez <strong>« Sur l’écran d’accueil »</strong>.</li>
+          <li>Touchez <strong>« Ajouter »</strong> : l’icône SAM Outils apparaît sur l’écran d’accueil.</li></ol>
+        <p>Sur iPhone, c’est la seule façon d’installer une application web : elle s’ouvre ensuite comme une vraie appli.</p>${oldShortcut}`;
+    case 'samsung':
+      return `${intro}<p class="sam-install-platform">Samsung Internet</p>
+        <ol><li>Touchez l’icône <strong>Installer</strong> (flèche vers le bas) dans la barre d’adresse,</li>
+          <li>ou ouvrez le menu <kbd>≡</kbd> puis <strong>« Ajouter la page à » → « Écran d’accueil »</strong>.</li>
+          <li>Validez <strong>« Installer »</strong>.</li></ol>${oldShortcut}`;
+    case 'firefox-android':
+      return `${intro}<p class="sam-install-platform">Firefox</p>
+        <ol><li>Ouvrez le menu <kbd>⋮</kbd>.</li><li>Touchez <strong>« Installer »</strong>, puis validez.</li></ol>
+        <p>Si l’option n’apparaît pas, ouvrez la page dans <strong>Chrome</strong>.</p>${oldShortcut}`;
+    case 'android':
+      return `${intro}<p class="sam-install-platform">Android (Chrome)</p>
+        <ol><li>Ouvrez le menu <kbd>⋮</kbd> en haut à droite de Chrome.</li>
+          <li>Touchez <strong>« Installer l’application »</strong>. Si vous voyez plutôt « Ajouter à l’écran d’accueil », touchez-le puis choisissez <strong>« Installer »</strong>, et non « Créer un raccourci ».</li>
+          <li>Validez : SAM Outils rejoint la liste de vos applications.</li></ol>${oldShortcut}`;
+    default:
+      if (platform.firefox || platform.safari) {
+        return `${intro}<p class="sam-install-platform">Ordinateur</p><p>Ce navigateur n’installe pas les applications web. Ouvrez la page dans <strong>Chrome</strong> ou <strong>Edge</strong>, ou installez-la depuis votre téléphone.</p>`;
+      }
+      return `${intro}<p class="sam-install-platform">Ordinateur (Chrome, Edge)</p>
+        <ol><li>Cliquez sur l’icône <strong>Installer</strong> (écran avec une flèche) à droite de la barre d’adresse,</li>
+          <li>ou cherchez <strong>« Installer SAM Outils »</strong> dans le menu <kbd>⋮</kbd> du navigateur.</li></ol>`;
+  }
+}
+
 function initPwa() {
-  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  const local = ['localhost', '127.0.0.1'].includes(location.hostname);
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || local)) {
     navigator.serviceWorker.register('./service-worker.js').catch(error => console.warn('Service worker non enregistré', error));
   }
-  const button = $('sam-install');
+  const platform = detectPlatform();
+  const standaloneQuery = window.matchMedia('(display-mode: standalone)');
+  const isStandalone = () => standaloneQuery.matches || navigator.standalone === true;
+  const footButton = $('sam-install');
+  const sideButton = $('sam-side-install');
+  const banner = $('sam-install-banner');
+  const dialog = $('sam-install-dialog');
+  const DISMISS_KEY = 'installBannerDismissedAt';
+
+  function refresh() {
+    const installed = isStandalone();
+    const dismissedAt = Number(storage.get(DISMISS_KEY, 0)) || 0;
+    const recentlyDismissed = Date.now() - dismissedAt < 30 * 24 * 3600 * 1000;
+    const canOffer = !installed && (platform.mobile || Boolean(deferredInstall));
+    sideButton.classList.toggle('hidden', !canOffer);
+    footButton.classList.toggle('hidden', installed || !(deferredInstall || platform.id === 'ios'));
+    banner.classList.toggle('hidden', !canOffer || !platform.mobile || recentlyDismissed);
+  }
+
+  async function install() {
+    if (deferredInstall) {
+      const prompt = deferredInstall;
+      deferredInstall = null;
+      prompt.prompt();
+      const choice = await prompt.userChoice.catch(() => null);
+      if (choice?.outcome !== 'accepted') toast('Installation annulée. Vous pourrez la relancer depuis le menu.');
+      refresh();
+      return;
+    }
+    $('sam-install-steps').innerHTML = installSteps(platform);
+    closeDrawer();
+    if (typeof dialog.showModal === 'function') dialog.showModal();
+  }
+
   window.addEventListener('beforeinstallprompt', event => {
     event.preventDefault();
     deferredInstall = event;
-    button.classList.remove('hidden');
+    refresh();
   });
   window.addEventListener('appinstalled', () => {
     deferredInstall = null;
-    button.classList.add('hidden');
+    refresh();
     toast('SAM Outils est installée sur cet appareil.');
   });
-  const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  if (ios && !standalone) button.classList.remove('hidden');
-  button.addEventListener('click', async () => {
-    if (deferredInstall) {
-      deferredInstall.prompt();
-      await deferredInstall.userChoice;
-      deferredInstall = null;
-      button.classList.add('hidden');
-    } else if (ios) {
-      toast('Sur iPhone / iPad : dans Safari, touchez Partager puis « Sur l’écran d’accueil ».', 6000);
-    }
+  standaloneQuery.addEventListener?.('change', refresh);
+
+  [footButton, sideButton, $('sam-install-banner-go')].forEach(button => button.addEventListener('click', install));
+  $('sam-install-banner-close').addEventListener('click', () => {
+    storage.set(DISMISS_KEY, Date.now());
+    refresh();
   });
+  $('sam-install-close').addEventListener('click', () => dialog.close());
+  $('sam-install-ok').addEventListener('click', () => dialog.close());
+  dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
+  refresh();
 }
 
 // ---------------------------------------------------------------------------

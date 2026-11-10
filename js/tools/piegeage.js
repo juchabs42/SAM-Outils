@@ -99,8 +99,8 @@ const TEMPLATE = `  <div class="tool-main">
         <label>Unité<select id="unitFilter"><option value="raw">Captures brutes</option><option value="per_day">Captures / jour</option></select></label>
         <label>Courbe<select id="processingFilter"><option value="observed">Valeurs observées</option><option value="weekly">Total hebdomadaire</option><option value="smoothed">Lissage</option></select></label>
         <div class="export-actions">
-          <button id="exportExcelButton" class="secondary-button export-button" type="button">Exporter Excel</button>
-          <button id="exportSvgButton" class="secondary-button export-button" type="button">Exporter SVG</button>
+          <button id="exportExcelButton" class="secondary-button export-button" type="button"><span class="export-icon" aria-hidden="true">⤓</span>Exporter Excel</button>
+          <button id="exportSvgButton" class="secondary-button export-button" type="button"><span class="export-icon" aria-hidden="true">⤓</span>Exporter SVG</button>
         </div>
       </div>
     </section>
@@ -369,6 +369,8 @@ let currentUser = null;
 let chart = null;
 let syncInProgress = false;
 let excelImportPlan = null;
+const HISTORY_PREVIEW = 5;
+let historyExpanded = false;
 
 const data = {
   species: [], campaigns: [], campaignSpecies: [], parcels: [], campaignParcels: [],
@@ -849,6 +851,7 @@ function populateParcelFilter() {
     speciesFilterState.clear();
     sexFilterState.clear();
     lastFilterCampaignId = campaignId;
+    historyExpanded = false;
   }
 
   const parcels = parcelsForCampaign(campaignId);
@@ -1400,7 +1403,11 @@ function renderHistory() {
   const observations = selectedObservations().slice().sort((a,b)=>b.observed_on.localeCompare(a.observed_on) || String(b.created_at).localeCompare(String(a.created_at)));
   if (!observations.length) { container.innerHTML = '<div class="history-empty">Aucun relevé pour cette sélection.</div>'; return; }
 
-  observations.forEach(obs => {
+  // Les 5 derniers relevés, puis « Voir plus » pour afficher tout l’historique.
+  const hiddenCount = Math.max(0, observations.length - HISTORY_PREVIEW);
+  const visible = historyExpanded ? observations : observations.slice(0, HISTORY_PREVIEW);
+
+  visible.forEach(obs => {
     const trap = trapById(obs.trap_id); const parcel = parcelById(trap?.parcel_id); const details = detailsForObservation(obs.id);
     const identified = identifiedTotal(obs.id); const remaining = Math.max(0, Number(obs.total_captured || 0) - identified);
     const card = document.createElement("article"); card.className = `history-card${obs._pending ? " pending" : ""}`;
@@ -1436,6 +1443,20 @@ function renderHistory() {
     }
     container.appendChild(card);
   });
+
+  if (hiddenCount) {
+    const more = document.createElement("button");
+    more.type = "button";
+    more.className = "secondary-button history-more";
+    more.setAttribute("aria-expanded", String(historyExpanded));
+    more.textContent = historyExpanded ? "Voir moins" : `Voir plus (${hiddenCount} relevé${hiddenCount > 1 ? "s" : ""} de plus)`;
+    more.addEventListener("click", () => {
+      historyExpanded = !historyExpanded;
+      renderHistory();
+      if (!historyExpanded) $("historyList").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+    container.appendChild(more);
+  }
 }
 
 function escapeHtml(value) {

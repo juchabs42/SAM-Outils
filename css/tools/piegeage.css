@@ -348,3 +348,47 @@
 .tool-piegeage .hero .hero-text { font-size: .92rem; }
 .tool-piegeage .admin-actions { width: min(520px, 100%); grid-template-columns: repeat(2, minmax(120px, 1fr)); }
 .tool-piegeage .app-dialog { z-index: 90; }
+
+/* =========================================================
+   SAM Outils : boutons d'export côte à côte, historique repliable
+   ========================================================= */
+.tool-piegeage .filter-grid > .export-actions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  margin-left: auto;
+}
+.tool-piegeage .export-actions .export-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 0;
+  width: auto;
+  min-height: 42px;
+  padding: 0 14px;
+  font-size: .86rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.tool-piegeage .export-icon { font-size: 1rem; line-height: 1; color: var(--brand); }
+.tool-piegeage .history-more { justify-self: center; min-width: 220px; margin-top: 4px; }
+
+@media (max-width: 1050px) {
+  .tool-piegeage .filter-grid > .export-actions { grid-column: auto; }
+}
+@media (max-width: 720px) {
+  .tool-piegeage .filter-grid > .export-actions {
+    flex: 1 1 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    margin-left: 0;
+  }
+  .tool-piegeage .export-actions .export-button { width: 100%; min-height: 44px; padding: 0 10px; }
+  .tool-piegeage .history-more { width: 100%; min-height: 44px; }
+}
+@media (max-width: 390px) {
+  .tool-piegeage .filter-grid > .export-actions { grid-template-columns: 1fr 1fr; }
+  .tool-piegeage .export-actions .export-button { font-size: .8rem; gap: 5px; padding: 0 6px; }
+}

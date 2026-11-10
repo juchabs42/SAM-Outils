@@ -30,8 +30,8 @@ const TEMPLATE = `<div class="tool-main">
 
       <div class="active-actions">
         <button id="configurationBtn" class="secondary" type="button">Configuration</button>
-        <button id="newParcelBtn" data-editable type="button">Nouvelle parcelle</button>
       </div>
+      <button id="newParcelBtn" class="sam-filter-action hidden" type="button"><span class="sam-filter-action-plus" aria-hidden="true">+</span>Nouvelle parcelle</button>
     </section>
 
     <nav class="tabs" aria-label="Navigation principale">
@@ -162,7 +162,6 @@ const TEMPLATE = `<div class="tool-main">
             <p class="eyebrow">Météo</p>
             <h2 id="forecast-title">Prévision phénologique</h2>
           </div>
-          <button id="refreshBtn" class="secondary" type="button">Actualiser</button>
         </div>
         <div id="weatherStatus" class="loading-state">Aucune donnée chargée.</div>
         <div id="forecastTableWrap" class="table-wrap hidden">
@@ -349,12 +348,15 @@ function bindElements() {
     'saveParcelBtn','newParcelBtn','deleteParcelBtn',
     'stageMain','stageBbch','gddTotal','nextStage','nextDate','calibrationNotice',
     'alertsSection','alertsList','observationDate','observationStage','observationPercentage','addObservationBtn','observationsList',
-    'refreshBtn','weatherStatus','forecastTableWrap','forecastBody',
+    'weatherStatus','forecastTableWrap','forecastBody',
     'stageHistoryStatus','stageHistoryWrap','stageHistoryBody',
     'chartCurrentGdd','chartNextThreshold','chartForecastEnd','gddChartStatus','gddChart','chartWrap','chartTooltip',
     'exportStagesBtn'
   ].forEach(id => els[id] = root.querySelector(`#${id}`));
   els.main = root.querySelector('.tool-main');
+  // « Nouvelle parcelle » s'affiche dans la barre du haut, à côté de la période.
+  const slot = ctx.filterActions?.();
+  if (slot && els.newParcelBtn) slot.appendChild(els.newParcelBtn);
 }
 
 function bindEvents() {
@@ -374,7 +376,6 @@ function bindEvents() {
   els.newParcelBtn.addEventListener('click', openNewParcel);
   els.deleteParcelBtn.addEventListener('click', deleteParcel);
   els.addObservationBtn.addEventListener('click', addObservation);
-  els.refreshBtn.addEventListener('click', () => refreshWeather(true));
   els.dashboardTabBtn.addEventListener('click', () => switchTab('dashboard'));
   els.historyTabBtn.addEventListener('click', () => switchTab('history'));
   els.exportStagesBtn.addEventListener('click', exportStageTable);
@@ -1189,23 +1190,50 @@ function drawChart() {
   const margin = { top: 18, right: 18, bottom: 42, left: 52 };
   const chartW = width - margin.left - margin.right;
   const chartH = height - margin.top - margin.bottom;
-  const maxGdd = Math.max(latestAnalysis.lastStage.gdd, ...data.map(d => d.cumulative)) * 1.08;
+  // Axe des degrés-jours gradué tous les 50 DJ.
+  const GDD_STEP = 50;
+  const maxGdd = Math.max(GDD_STEP, Math.ceil(Math.max(latestAnalysis.lastStage.gdd, ...data.map(d => d.cumulative)) * 1.04 / GDD_STEP) * GDD_STEP);
   const startDate = new Date(data[0].date + 'T00:00:00');
   const endDate = new Date(data[data.length - 1].date + 'T00:00:00');
   const span = Math.max(1, endDate - startDate);
   const x = date => margin.left + ((new Date(date + 'T00:00:00') - startDate) / span) * chartW;
   const y = val => margin.top + chartH - (val / maxGdd) * chartH;
 
-  ctx.strokeStyle = '#ddd';
+  // Graduations horizontales : un trait tous les 50 DJ, libellé tous les 50 DJ
+  // (ou tous les 100 / 200 DJ si le graphique est trop petit pour tout écrire).
+  const pxPerStep = chartH * GDD_STEP / maxGdd;
+  const labelEvery = pxPerStep >= 15 ? 1 : pxPerStep >= 8 ? 2 : 4;
   ctx.lineWidth = 1;
-  for (let i = 0; i <= 4; i++) {
-    const gv = (maxGdd / 4) * i;
-    const yy = y(gv);
+  ctx.font = '12px sans-serif';
+  ctx.textAlign = 'right';
+  for (let gv = 0, i = 0; gv <= maxGdd; gv += GDD_STEP, i++) {
+    const yy = Math.round(y(gv)) + 0.5;
+    ctx.strokeStyle = i % labelEvery === 0 ? '#e2e2e2' : '#f2f2f2';
     ctx.beginPath(); ctx.moveTo(margin.left, yy); ctx.lineTo(width - margin.right, yy); ctx.stroke();
-    ctx.fillStyle = '#666';
-    ctx.font = '12px sans-serif';
-    ctx.fillText(String(Math.round(gv)), 6, yy + 4);
+    if (i % labelEvery === 0) {
+      ctx.fillStyle = '#666';
+      ctx.fillText(String(gv), margin.left - 8, yy + 4);
+    }
   }
+  ctx.textAlign = 'left';
+
+  // Graduations des dates : pas choisi pour garder ~70 px entre deux dates.
+  const dayCount = Math.max(1, diffDays(data[0].date, data[data.length - 1].date));
+  const maxTicks = Math.max(2, Math.floor(chartW / 70));
+  const dayStep = [1, 2, 3, 5, 7, 10, 14, 21, 30, 45, 61, 91].find(step => dayCount / step <= maxTicks) || 122;
+  const tickDates = [];
+  for (let offset = 0; offset <= dayCount; offset += dayStep) tickDates.push(isoDate(addDays(new Date(data[0].date + 'T12:00:00'), offset)));
+  const lastDate = data[data.length - 1].date;
+  if (tickDates[tickDates.length - 1] !== lastDate) {
+    const gap = x(lastDate) - x(tickDates[tickDates.length - 1]);
+    if (gap < 58) tickDates.pop();
+    tickDates.push(lastDate);
+  }
+  ctx.strokeStyle = '#f2f2f2';
+  tickDates.forEach(date => {
+    const xx = Math.round(x(date)) + 0.5;
+    ctx.beginPath(); ctx.moveTo(xx, margin.top); ctx.lineTo(xx, height - margin.bottom); ctx.stroke();
+  });
 
   latestAnalysis.stages.forEach(stage => {
     const yy = y(stage.gdd);
@@ -1221,15 +1249,15 @@ function drawChart() {
   drawLine(ctx, hist, x, y, '#E3084D', false);
   drawLine(ctx, forecast, x, y, '#978AA1', true, hist[hist.length - 1]);
 
-  const ticks = [data[0], data[Math.floor(data.length / 2)], data[data.length - 1]].filter(Boolean);
   ctx.fillStyle = '#666';
   ctx.font = '12px sans-serif';
-  ticks.forEach(t => {
-    const xx = x(t.date);
+  ctx.textAlign = 'center';
+  tickDates.forEach(date => {
+    const xx = Math.round(x(date)) + 0.5;
     ctx.beginPath(); ctx.moveTo(xx, height - margin.bottom); ctx.lineTo(xx, height - margin.bottom + 6); ctx.strokeStyle = '#bdbdbd'; ctx.stroke();
-    const txt = shortDate(t.date);
-    ctx.fillText(txt, Math.max(margin.left, xx - 18), height - 12);
+    ctx.fillText(shortDate(date), Math.min(width - margin.right - 16, Math.max(margin.left + 16, xx)), height - 12);
   });
+  ctx.textAlign = 'left';
   ctx.strokeStyle = '#999';
   ctx.beginPath(); ctx.moveTo(margin.left, margin.top); ctx.lineTo(margin.left, height - margin.bottom); ctx.lineTo(width - margin.right, height - margin.bottom); ctx.stroke();
 

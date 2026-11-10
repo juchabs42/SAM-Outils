@@ -42,7 +42,6 @@ const TEMPLATE = `
       </label>
       <label>Surface de la parcelle (ha)<input id="surfaceHa" type="number" min="0.01" step="0.01"></label>
     </div>
-    <div class="button-row"><button id="resetKcButton" class="secondary-button" type="button">Revenir aux Kc automatiques</button></div>
     <p id="kcInfo" class="muted"></p>
     <details class="info-box">
       <summary>ⓘ Comprendre la part de pluie prise en compte</summary>
@@ -72,7 +71,6 @@ const TEMPLATE = `
     </div>
     <div class="button-row">
       <button id="calculateButton" class="primary-button" type="button">Calculer la programmation</button>
-      <button id="refreshButton" class="secondary-button" type="button">Actualiser la météo</button>
     </div>
   </section>
 
@@ -104,8 +102,14 @@ const TEMPLATE = `
   <section class="card">
     <p class="eyebrow">Météo</p>
     <h2>Période de calcul et jours précédents</h2>
-    <canvas id="weatherChart" height="270"></canvas>
-    <p class="legend">Orange : ETP · Bleu : pluie · Trait rouge : début des prévisions</p>
+    <div class="irr-legend">
+      <span><i class="irr-swatch is-et0"></i>ET₀ (mm)</span>
+      <span><i class="irr-swatch is-rain"></i>Pluie (mm)</span>
+      <span><i class="irr-swatch is-before"></i>Teinte pâle : 7 jours avant la période</span>
+      <span><i class="irr-swatch is-forecast"></i>Début des prévisions</span>
+    </div>
+    <div class="irr-chart"><canvas id="weatherChart" aria-label="ET0 et pluie journalières"></canvas></div>
+    <p class="muted irr-chart-hint">Survolez (ou touchez) le graphique pour lire les valeurs du jour.</p>
   </section>
   <p id="updatedAt" class="muted center"></p>
   <p class="attribution">Données météo : Open-Meteo. Prototype SudExpé.</p>
@@ -142,6 +146,21 @@ const DEFAULTS = {
 const LEGACY_STORAGE_KEY = 'samIrrigationPeriodV1';
 
 function num(value, fallback = 0) { const n = Number(value); return Number.isFinite(n) ? n : fallback; }
+
+// L'API de prévision annonce 92 jours passés, mais les plus anciens arrivent vides (null) :
+// on ne garde que les jours où ET0 et pluie sont réellement fournis.
+function availableRows(daily) {
+  const rows = (daily?.time || []).map((date, index) => ({
+    date,
+    etp: daily.et0_fao_evapotranspiration?.[index],
+    rain: daily.precipitation_sum?.[index]
+  }));
+  const first = rows.findIndex(row => row.etp != null && row.rain != null);
+  if (first < 0) return [];
+  let last = rows.length - 1;
+  while (last > first && (rows[last].etp == null || rows[last].rain == null)) last--;
+  return rows.slice(first, last + 1).map(row => ({ date: row.date, etp: num(row.etp), rain: num(row.rain) }));
+}
 function round(value, decimals = 2) { const f = 10 ** decimals; return Math.round((num(value) + Number.EPSILON) * f) / f; }
 function fr(value, decimals = 2) { return round(value, decimals).toLocaleString('fr-FR', { maximumFractionDigits: decimals }); }
 function sum(values) { return values.reduce((total, value) => total + num(value), 0); }
@@ -170,10 +189,10 @@ export async function mount(root, ctx) {
       presets.lastDays(7, '7 derniers jours (a posteriori)')
     ],
     defaultPreset: 'next7',
-    min: () => addDaysISO(todayISO(), -90),
+    min: () => addDaysISO(todayISO(), -55),
     max: () => addDaysISO(todayISO(), 15),
     maxDays: 16,
-    hint: 'Données disponibles : 92 jours passés et 16 jours de prévisions.'
+    hint: 'Données disponibles : deux derniers mois environ et 16 jours de prévisions.'
   });
 
   function settings() {
@@ -309,8 +328,8 @@ export async function mount(root, ctx) {
   function showError(message) { q('#errorMessage').hidden = false; q('#errorMessage').textContent = message; }
   function hideError() { q('#errorMessage').hidden = true; }
   function setLoading(loading) {
-    q('#refreshButton').disabled = loading;
-    q('#refreshButton').textContent = loading ? 'Actualisation…' : 'Actualiser la météo';
+    q('#calculateButton').disabled = loading;
+    root.querySelector('.tool-main')?.setAttribute('aria-busy', String(loading));
   }
 
   function updateDateLimits() {
@@ -344,11 +363,7 @@ export async function mount(root, ctx) {
       if (!response.ok) throw new Error(`Open-Meteo répond ${response.status}.`);
       const data = await response.json();
       if (ctx.scope.disposed) return;
-      weatherRows = data.daily.time.map((date, index) => ({
-        date,
-        etp: num(data.daily.et0_fao_evapotranspiration[index]),
-        rain: num(data.daily.precipitation_sum[index])
-      }));
+      weatherRows = availableRows(data.daily);
       weatherMeta = { place: place.name, savedAt: null };
       storage.set(cacheKey, { savedAt: new Date().toISOString(), rows: weatherRows });
       updateDateLimits();
@@ -444,87 +459,90 @@ export async function mount(root, ctx) {
     renderChart();
   }
 
+  const ET0_COLOR = '#f0892c';
+  const ET0_COLOR_LIGHT = 'rgba(240,137,44,.42)';
+  const RAIN_COLOR = '#3b8ad9';
+  const RAIN_COLOR_LIGHT = 'rgba(59,138,217,.42)';
+  let weatherChart = null;
+
+  // Trait pointillé rouge entre aujourd'hui et le premier jour de prévision.
+  const forecastLinePlugin = {
+    id: 'irrForecastLine',
+    afterDatasetsDraw(chart, _args, options) {
+      const index = options?.index;
+      if (!Number.isInteger(index) || index <= 0) return;
+      const { ctx: c, chartArea, scales } = chart;
+      const x = (scales.x.getPixelForValue(index - 1) + scales.x.getPixelForValue(index)) / 2;
+      c.save();
+      c.strokeStyle = '#D30D43';
+      c.lineWidth = 1.5;
+      c.setLineDash([5, 4]);
+      c.beginPath();
+      c.moveTo(x, chartArea.top);
+      c.lineTo(x, chartArea.bottom);
+      c.stroke();
+      c.restore();
+    }
+  };
+
   function renderChart() {
     const canvas = q('#weatherChart');
-    if (!canvas || !weatherRows.length) return;
-    const context = canvas.getContext('2d');
-    const ratio = window.devicePixelRatio || 1;
-    const width = canvas.clientWidth || 800;
-    const height = 270;
-    canvas.width = width * ratio;
-    canvas.height = height * ratio;
-    context.setTransform(ratio, 0, 0, ratio, 0, 0);
-    context.clearRect(0, 0, width, height);
+    const Chart = window.Chart;
+    if (!canvas || !Chart || !weatherRows.length) return;
     const { start, end } = programPeriod();
     const rows = weatherRows.filter(row => row.date >= addDaysISO(start, -7) && row.date <= end);
+    if (weatherChart) { weatherChart.destroy(); weatherChart = null; }
     if (!rows.length) return;
-    const padding = { left: 48, right: 12, top: 20, bottom: 42 };
-    const chartWidth = width - padding.left - padding.right;
-    const chartHeight = height - padding.top - padding.bottom;
-    const maximum = Math.ceil(Math.max(1, ...rows.flatMap(row => [row.etp, row.rain])));
-    const groupWidth = chartWidth / rows.length;
-    const barWidth = Math.min(13, groupWidth * 0.25);
-    context.font = '10px Inter, system-ui';
-    context.textBaseline = 'middle';
-    for (let index = 0; index <= 4; index++) {
-      const y = padding.top + chartHeight * index / 4;
-      const value = maximum * (1 - index / 4);
-      context.strokeStyle = '#e7dfe1';
-      context.beginPath(); context.moveTo(padding.left, y); context.lineTo(width - padding.right, y); context.stroke();
-      context.fillStyle = '#75686c';
-      context.textAlign = 'right';
-      context.fillText(`${fr(value, 1)} mm`, padding.left - 6, y);
-    }
-    context.strokeStyle = '#8f8185';
-    context.beginPath();
-    context.moveTo(padding.left, padding.top);
-    context.lineTo(padding.left, padding.top + chartHeight);
-    context.lineTo(width - padding.right, padding.top + chartHeight);
-    context.stroke();
-    const labelStep = width < 500 ? Math.max(1, Math.ceil(rows.length / 7)) : width < 700 ? Math.max(1, Math.ceil(rows.length / 10)) : 1;
     const today = todayISO();
-    rows.forEach((row, index) => {
-      const x = padding.left + index * groupWidth + groupWidth / 2;
-      const drawBar = (barX, value, color) => {
-        const barHeight = value / maximum * chartHeight;
-        context.fillStyle = color;
-        context.fillRect(barX, padding.top + chartHeight - barHeight, barWidth, barHeight);
-      };
-      drawBar(x - barWidth - 2, row.etp, row.date < start ? '#e9b98a' : '#d98d3d');
-      drawBar(x + 2, row.rain, row.date < start ? '#9cc6df' : '#4b98c7');
-      if (index % labelStep === 0) {
-        context.fillStyle = row.date <= today ? '#57494d' : '#D30D43';
-        context.font = width < 500 ? '8px Inter, system-ui' : '9px Inter, system-ui';
-        context.textAlign = 'center';
-        context.textBaseline = 'alphabetic';
-        context.fillText(formatShortDate(row.date), x, height - 14);
-      }
-    });
     const forecastIndex = rows.findIndex(row => row.date > today);
-    if (forecastIndex > 0) {
-      const x = padding.left + forecastIndex * groupWidth;
-      context.strokeStyle = '#D30D43';
-      context.setLineDash([5, 4]);
-      context.beginPath(); context.moveTo(x, padding.top); context.lineTo(x, padding.top + chartHeight); context.stroke();
-      context.setLineDash([]);
-    }
+    const dayName = iso => new Date(`${iso}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    weatherChart = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: rows.map(row => formatShortDate(row.date)),
+        datasets: [
+          { label: 'ET₀', data: rows.map(row => round(row.etp, 1)), backgroundColor: rows.map(row => (row.date < start ? ET0_COLOR_LIGHT : ET0_COLOR)), borderRadius: 3, maxBarThickness: 18, categoryPercentage: 0.7, barPercentage: 0.9 },
+          { label: 'Pluie', data: rows.map(row => round(row.rain, 1)), backgroundColor: rows.map(row => (row.date < start ? RAIN_COLOR_LIGHT : RAIN_COLOR)), borderRadius: 3, maxBarThickness: 18, categoryPercentage: 0.7, barPercentage: 0.9 }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          irrForecastLine: { index: forecastIndex },
+          tooltip: {
+            padding: 10,
+            cornerRadius: 8,
+            callbacks: {
+              title: items => {
+                const row = rows[items[0].dataIndex];
+                const tag = row.date > today ? ' · prévision' : row.date < start ? ' · avant la période' : '';
+                return `${dayName(row.date)}${tag}`;
+              },
+              label: item => ` ${item.dataset.label} : ${fr(item.parsed.y, 1)} mm`
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, color: item => (rows[item.index]?.date > today ? '#D30D43' : '#57494d') } },
+          y: { beginAtZero: true, grid: { color: '#efe7e9' }, border: { display: false }, title: { display: true, text: 'mm / jour', color: '#75686c' }, ticks: { color: '#75686c' } }
+        }
+      },
+      plugins: [forecastLinePlugin]
+    });
   }
 
   // Événements
-  q('#refreshButton').addEventListener('click', refreshWeather);
   q('#calculateButton').addEventListener('click', () => { saveForm(); render(); });
-  q('#resetKcButton').addEventListener('click', () => {
-    q('#kcValue').value = '';
-    saveForm();
-    updateKcInfo();
-    render();
-  });
   q('#rateMode').addEventListener('change', toggleRateFields);
   q('#systemType').addEventListener('change', () => { updateRainRecommendation(true); updateKcInfo(); });
   q('#interRowCover').addEventListener('change', updateKcInfo);
   q('#kcValue').addEventListener('input', updateKcInfo);
+  q('#kcValue').addEventListener('change', () => { saveForm(); updateKcInfo(); render(); });
   q('#lastIrrigation').addEventListener('change', () => { saveForm(); render(); });
-  ctx.scope.on(window, 'resize', () => { if (weatherRows.length) renderChart(); });
   ctx.location.onChange(() => refreshWeather());
   ctx.period.onChange(() => {
     const s = settings();
@@ -542,4 +560,10 @@ export async function mount(root, ctx) {
   if (q('#lastIrrigation').value >= programPeriod().start) q('#lastIrrigation').value = defaultLastIrrigation();
   updatePeriodPreview();
   await refreshWeather();
+
+  return {
+    unmount() {
+      if (weatherChart) weatherChart.destroy();
+    }
+  };
 }
