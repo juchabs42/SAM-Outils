@@ -6,7 +6,7 @@ import { places, searchPlaces, locateMe, placeLabel } from './places.js';
 import { period } from './period.js';
 import { storage, debounce, escapeHtml, formatDateShort, loadScript, loadCss, VENDOR, isISODate, todayISO } from './util.js';
 
-const APP_VERSION = '2026-11-10.2';
+const APP_VERSION = '2026-11-10.3';
 
 export const TOOLS = [
   { id: 'indicateurs', title: 'SAM Indicateurs agroclimatiques', card: 'Indicateurs <br>agro&shy;clima&shy;tiques', icon: 'toolIndicateurs' },
@@ -18,6 +18,10 @@ export const TOOLS = [
 ];
 const HIDDEN_TOOLS = [
   { id: 'migration', title: 'Migration des données Piégeage', hidden: true, adminOnly: true }
+];
+// Rubriques hors « Outils SAM » (barre du haut) : pas de cartes d'outils.
+const SECTIONS = [
+  { id: 'donnees', title: 'Données des stations SAM', section: true, admin: true }
 ];
 const DEFAULT_TOOL = 'indicateurs';
 
@@ -482,7 +486,7 @@ function destroyDetachedCharts() {
 
 function routeFromHash() {
   const id = (window.location.hash || '').replace(/^#\/?/, '').split(/[/?]/)[0];
-  return TOOLS.find(t => t.id === id) || HIDDEN_TOOLS.find(t => t.id === id) || null;
+  return TOOLS.find(t => t.id === id) || SECTIONS.find(t => t.id === id) || HIDDEN_TOOLS.find(t => t.id === id) || null;
 }
 
 async function mountTool(tool) {
@@ -503,7 +507,9 @@ async function mountTool(tool) {
   activeTool = tool;
   document.title = `${tool.title} — SAM Outils`;
   $('sam-title').textContent = tool.title;
-  renderToolCards(tool.id);
+  $('sam-tools').classList.toggle('hidden', Boolean(tool.section));
+  if (!tool.section) renderToolCards(tool.id);
+  updateTopNav(tool);
   setModePill('');
   updateToolModePill();
   period.configure(tool.id, null);
@@ -531,13 +537,24 @@ async function mountTool(tool) {
   }
 }
 
+function updateTopNav(tool) {
+  const inData = tool?.id === 'donnees';
+  const outils = $('sam-nav-outils');
+  const donnees = $('sam-nav-donnees');
+  outils.href = `#/${storage.get('lastTool', DEFAULT_TOOL)}`;
+  outils.classList.toggle('is-active', !inData);
+  donnees.classList.toggle('is-active', inData);
+  if (inData) { donnees.setAttribute('aria-current', 'page'); outils.removeAttribute('aria-current'); }
+  else { outils.setAttribute('aria-current', 'page'); donnees.removeAttribute('aria-current'); }
+}
+
 function handleRoute() {
   const tool = routeFromHash();
   if (!tool) {
     window.location.replace(`#/${storage.get('lastTool', DEFAULT_TOOL)}`);
     return;
   }
-  if (!tool.hidden) storage.set('lastTool', tool.id);
+  if (TOOLS.includes(tool)) storage.set('lastTool', tool.id);
   if (currentMount?.tool?.id === tool.id) return;
   mountTool(tool);
 }

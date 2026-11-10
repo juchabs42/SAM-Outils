@@ -219,6 +219,9 @@ img { max-width: 100%; }
   font-weight: 600;
 }
 .sam-side-action:hover { background: rgba(255,255,255,.1); }
+a.sam-side-action { text-decoration: none; }
+.sam-side-stations { display: flex; width: max-content; }
+a.sam-top-item { text-decoration: none; }
 .sam-side-note { margin: 14px 4px 0; font-size: .78rem; line-height: 1.45; opacity: .78; }
 
 .sam-side-foot {

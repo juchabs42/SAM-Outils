@@ -35,7 +35,7 @@
         <ul class="sam-places" id="sam-places"></ul>
         <button class="sam-side-action" id="sam-side-gps" type="button"><span data-icon="gps"></span>Utiliser ma position</button>
         <button class="sam-side-action sam-side-install hidden" id="sam-side-install" type="button"><span data-icon="install"></span>Installer l’appli sur cet appareil</button>
-        <p class="sam-side-note">Les agribases (stations connectées) s’afficheront ici dès qu’elles seront disponibles.</p>
+        <a class="sam-side-action sam-side-stations" href="#/donnees"><span data-icon="map"></span>Stations du réseau SAM</a>
 
         <div class="sam-side-foot">
           <span class="sam-side-foot-icon" data-icon="info"></span>
@@ -55,11 +55,11 @@
         <button class="sam-burger" id="sam-burger" type="button" aria-label="Ouvrir le menu" aria-controls="sam-sidebar" aria-expanded="false"><span data-icon="menu"></span></button>
         <button class="sam-expand" id="sam-expand" type="button" aria-label="Déplier le menu" title="Déplier le menu"><span data-icon="chevronRight"></span></button>
         <nav class="sam-topnav" aria-label="Sections">
-          <span class="sam-topnav-link is-disabled" title="Bientôt : données des stations connectées" aria-disabled="true">Données</span>
-          <a class="sam-topnav-link is-active" href="#/indicateurs" aria-current="page">Outils SAM</a>
+          <a class="sam-topnav-link" id="sam-nav-donnees" href="#/donnees">Données</a>
+          <a class="sam-topnav-link is-active" id="sam-nav-outils" href="#/indicateurs" aria-current="page">Outils SAM</a>
         </nav>
         <div class="sam-topright">
-          <span class="sam-top-item is-disabled" title="Bientôt : cartographie des stations" aria-disabled="true"><span data-icon="map"></span><span class="sam-top-label">Cartographie</span></span>
+          <a class="sam-top-item" id="sam-nav-carte" href="#/donnees?vue=carte" title="Carte des stations du réseau SAM"><span data-icon="map"></span><span class="sam-top-label">Cartographie</span></a>
           <span class="sam-top-item sam-perso hidden" id="sam-perso" title="Compte connecté"><span data-icon="user"></span><span class="sam-top-label" id="sam-perso-email"></span></span>
           <button class="sam-top-item sam-auth-button" id="sam-auth-button" type="button"><span data-icon="login" id="sam-auth-icon"></span><span class="sam-top-label" id="sam-auth-label">Connexion</span></button>
         </div>
