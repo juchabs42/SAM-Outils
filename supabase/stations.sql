@@ -3,11 +3,8 @@
 -- -----------------------------------------------------------------------------
 -- À coller dans Supabase > SQL Editor > New query, puis Run (relançable).
 --
--- AVANT, une seule fois : enregistrer les identifiants Comsag dans le coffre
--- (Vault) de Supabase, jamais dans le code ni sur GitHub :
---
---   select vault.create_secret('1326', 'comsag_id', 'Identifiant API Comsag');
---   select vault.create_secret('LE_TOKEN_DE_REGIS', 'comsag_token', 'Jeton API Comsag');
+-- Les identifiants Comsag sont rangés dans le coffre (Vault) de Supabase,
+-- jamais dans le code ni sur GitHub (secrets « comsag_id » et « comsag_token »).
 --
 -- Fonctionnement :
 --   • toutes les 30 minutes, la base demande à Comsag les nouvelles mesures de
@@ -37,6 +34,7 @@ create table if not exists public.stations (
   altitude double precision,
   active boolean not null default true,       -- collecte automatique
   publique boolean not null default true,     -- visible sans compte
+  installee boolean not null default true,    -- station posée sur le terrain
   commentaire text,
   capteurs text[] not null default '{}',      -- capteurs vus dans les mesures
   premiere_mesure timestamptz,
@@ -46,30 +44,59 @@ create table if not exists public.stations (
   updated_at timestamptz not null default now()
 );
 
-insert into public.stations (id, nom) values
-  ('TCSD_5880', 'Mas Carthagène'),
-  ('TCSD_5881', 'Marsillargues Nord 1'),
-  ('TCSD_5882', 'Pont-Saint-Esprit'),
-  ('TCSD_5883', 'Saint-Just Hauteur'),
-  ('TCSD_5884', 'Candillargues Cevelous'),
-  ('TCSD_5885', 'Mornas'),
-  ('TCSD_5886', 'Mondragon'),
-  ('TCSD_5887', 'Mas de la Vierge'),
-  ('TCSD_5888', 'Mas de la Plaine'),
-  ('TCSD_5889', 'Aubord'),
-  ('TCSD_5890', 'Le Loup'),
-  ('TCSD_5891', 'Beauvezet'),
-  ('TCSD_5892', 'Mas de Pétrusse'),
-  ('TCSD_5893', 'Saint-Nazaire-de-Pézan'),
-  ('TCSD_5894', 'Venejean'),
-  ('TCSD_5895', 'Fauvette'),
-  ('TCSD_5896', 'P13 Carthagène'),
-  ('TCSD_5897', 'P16 Carthagène'),
-  ('TCSD_5898', 'P3 Carthagène'),
-  ('TCSD_5899', 'P5 Carthagène'),
-  ('TCSD_5900', 'P8 Carthagène'),
-  ('TCSD_5901', 'Marsillargues Nord 3')
-on conflict (id) do nothing;
+alter table public.stations add column if not exists installee boolean not null default true;
+
+-- Noms, communes et coordonnées : fichier « Config réseaux - utilisateur - SudExpé » (10/11/2026).
+-- Altitude estimée à partir du modèle de terrain (Open-Meteo). Les valeurs déjà saisies ne sont pas écrasées.
+insert into public.stations (id, nom, commune, latitude, longitude, altitude) values
+  ('TCSD_5880', 'Mas de Carthagène', 'Marsillargues (34)', 43.628333, 4.151306, 2),
+  ('TCSD_5881', 'Marsillargues Marseillais Nord 1', 'Marsillargues (34)', 43.677222, 4.163389, 7),
+  ('TCSD_5882', 'Pont-Saint-Esprit', 'Pont-Saint-Esprit (30)', 44.245528, 4.652833, 41),
+  ('TCSD_5883', 'Saint-Just Hauteur', 'Saint-Just (34)', 43.654056, 4.102417, 5),
+  ('TCSD_5884', 'Candillargues Cevelous', 'Candillargues (34)', 43.624306, 4.070500, 3),
+  ('TCSD_5885', 'Mornas', 'Mornas (84)', 44.180250, 4.738111, 33),
+  ('TCSD_5886', 'Mondragon', 'Mondragon (84)', 44.248750, 4.679444, 40),
+  ('TCSD_5887', 'Mas de la Vierge', 'Mauguio (34)', 43.608056, 3.968722, 12),
+  ('TCSD_5888', 'Mas de la Plaine', 'Mudaison (34)', 43.631250, 4.031528, 10),
+  ('TCSD_5889', 'Aubord', 'Bernis (30)', 43.752194, 4.297722, 17),
+  ('TCSD_5890', 'Le Loup', 'Aigues-Vives (11)', 43.232361, 2.552528, 53),
+  ('TCSD_5891', 'Beauvezet', 'Mondragon (84)', 44.249639, 4.666833, 41),
+  ('TCSD_5892', 'Mas de Pétrusse', 'Mauguio (34)', 43.612028, 4.038444, 2),
+  ('TCSD_5893', 'Saint-Nazaire-de-Pézan', 'Saint-Nazaire-de-Pézan (34)', 43.640639, 4.111806, 3),
+  ('TCSD_5894', 'Venejean', null, null, null, null),
+  ('TCSD_5895', 'Fauvette', null, null, null, null),
+  ('TCSD_5896', 'Carthagène P13', 'Marsillargues (34)', 43.645028, 4.168389, 2),
+  ('TCSD_5897', 'Carthagène P16', 'Marsillargues (34)', 43.656472, 4.173806, 4),
+  ('TCSD_5898', 'Carthagène P3', 'Marsillargues (34)', 43.627472, 4.150444, 0),
+  ('TCSD_5899', 'Carthagène P5', 'Marsillargues (34)', 43.626556, 4.152028, 1),
+  ('TCSD_5900', 'Carthagène P8', 'Marsillargues (34)', 43.634056, 4.150000, 0),
+  ('TCSD_5901', 'Marsillargues Marseillais Nord 3', 'Marsillargues (34)', 43.678222, 4.166056, 6)
+on conflict (id) do update set
+  commune = coalesce(public.stations.commune, excluded.commune),
+  latitude = coalesce(public.stations.latitude, excluded.latitude),
+  longitude = coalesce(public.stations.longitude, excluded.longitude),
+  altitude = coalesce(public.stations.altitude, excluded.altitude);
+
+-- Noms de la première version remplacés par ceux du fichier de configuration (sauf s'ils ont été modifiés depuis)
+update public.stations s set nom = v.nouveau
+from (values
+  ('TCSD_5880', 'Mas Carthagène', 'Mas de Carthagène'),
+  ('TCSD_5881', 'Marsillargues Nord 1', 'Marsillargues Marseillais Nord 1'),
+  ('TCSD_5896', 'P13 Carthagène', 'Carthagène P13'),
+  ('TCSD_5897', 'P16 Carthagène', 'Carthagène P16'),
+  ('TCSD_5898', 'P3 Carthagène', 'Carthagène P3'),
+  ('TCSD_5899', 'P5 Carthagène', 'Carthagène P5'),
+  ('TCSD_5900', 'P8 Carthagène', 'Carthagène P8'),
+  ('TCSD_5901', 'Marsillargues Nord 3', 'Marsillargues Marseillais Nord 3')
+) as v(id, ancien, nouveau)
+where s.id = v.id and s.nom = v.ancien;
+
+-- Stations pas encore posées (novembre 2026) : elles basculent seules en « installée »
+-- dès qu'elles transmettent (voir comsag_integrer).
+update public.stations set installee = false
+where id in ('TCSD_5882', 'TCSD_5883', 'TCSD_5884', 'TCSD_5885', 'TCSD_5886', 'TCSD_5887', 'TCSD_5888', 'TCSD_5889',
+             'TCSD_5891', 'TCSD_5892', 'TCSD_5893', 'TCSD_5894', 'TCSD_5895', 'TCSD_5900', 'TCSD_5901')
+  and (derniere_mesure is null or derniere_mesure < now() - interval '2 days');
 
 -- -----------------------------------------------------------------------------
 -- 2. Mesures horaires
@@ -92,17 +119,20 @@ create table if not exists public.station_capteurs (
   unite text,
   ordre smallint not null default 100
 );
+-- Dictionnaire des capteurs Comsag du réseau SAM (profondeurs des tensiomètres : fichier Config réseaux)
 insert into public.station_capteurs (code, libelle, unite, ordre) values
   ('t1', 'Température de l''air', '°C', 1),
-  ('hyg1', 'Humidité relative', '%', 2),
-  ('pluv', 'Pluie', 'mm', 3),
-  ('ts1', 'Capteur ts1 (à préciser)', null, 10),
-  ('ts2', 'Capteur ts2 (à préciser)', null, 11),
-  ('hum', 'Capteur hum (à préciser)', null, 12),
-  ('decagon1', 'Sonde Decagon 1 (à préciser)', null, 13),
-  ('decagon2', 'Sonde Decagon 2 (à préciser)', null, 14),
+  ('hyg1', 'Hygrométrie de l''air', '%', 2),
+  ('pluv', 'Pluviométrie', 'mm', 3),
+  ('hum', 'Humectation du feuillage', '%', 10),
+  ('ts1', 'Tensiomètre 1 (30 cm)', 'cb', 20),
+  ('ts2', 'Tensiomètre 2 (30 cm)', 'cb', 21),
+  ('ts4', 'Tensiomètre 4 (60 cm)', 'cb', 23),
+  ('ts5', 'Tensiomètre 5 (60 cm)', 'cb', 24),
+  ('decagon1', 'Humidité du sol 1', '%', 30),
+  ('decagon2', 'Humidité du sol 2', '%', 31),
   ('bat', 'Batterie', 'V', 90)
-on conflict (code) do nothing;
+on conflict (code) do update set libelle = excluded.libelle, unite = excluded.unite, ordre = excluded.ordre;
 
 -- Résumé journalier (jour civil, heure de Paris)
 create or replace view public.station_journalier
@@ -307,6 +337,9 @@ begin
         premiere_mesure = (select min(m.mesure_le) from public.station_mesures m where m.station_id = st.id),
         derniere_mesure = (select max(m.mesure_le) from public.station_mesures m where m.station_id = st.id)
       where st.id = r.station_id;
+      -- Une station « pas encore installée » qui transmet devient installée.
+      update public.stations set installee = true
+      where id = r.station_id and not installee and derniere_mesure > now() - interval '2 days';
     end if;
     delete from sam_private.comsag_requetes where request_id = r.request_id;
   end loop;

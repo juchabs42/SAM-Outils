@@ -12,7 +12,19 @@ const LATE_HOURS = 3;
 const SILENT_HOURS = 48;
 const COLORS = { temp: '#db0b1f', tmin: '#3b8ad9', tmoy: '#7f1d2d', hr: '#2e7d32', rain: '#3b8ad9', cumul: '#1f3b63' };
 const SENSOR_COLORS = ['#7c3aed', '#0f766e', '#b45309', '#be185d', '#475569', '#0891b2'];
-const BASE_SENSORS = { t1: 'Température', hyg1: 'Humidité', pluv: 'Pluie', bat: 'Batterie' };
+const BASE_SENSORS = {
+  t1: ['Température de l’air', '°C'], hyg1: ['Hygrométrie de l’air', '%'], pluv: ['Pluviométrie', 'mm'],
+  hum: ['Humectation du feuillage', '%'], bat: ['Batterie', 'V'],
+  ts1: ['Tensiomètre 1', 'cb'], ts2: ['Tensiomètre 2', 'cb'], ts4: ['Tensiomètre 4', 'cb'], ts5: ['Tensiomètre 5', 'cb'],
+  decagon1: ['Humidité du sol 1', '%'], decagon2: ['Humidité du sol 2', '%']
+};
+// Un graphique par famille de capteurs (même unité, même lecture).
+const SENSOR_GROUPS = [
+  { id: 'tensio', title: 'Tensiomètres', unit: 'cb', hint: 'Plus la valeur est élevée, plus le sol est sec.', test: code => /^ts\d+$/.test(code) },
+  { id: 'sol', title: 'Humidité du sol', unit: '%', hint: 'Sondes Decagon : plus la valeur est élevée, plus le sol est humide.', test: code => /^decagon\d+$/.test(code) },
+  { id: 'humect', title: 'Humectation du feuillage', unit: '%', hint: '', test: code => code === 'hum' },
+  { id: 'autres', title: 'Autres capteurs', unit: '', hint: '', test: () => true }
+];
 
 const TEMPLATE = `
 <div class="don-main">
@@ -39,6 +51,9 @@ const TEMPLATE = `
     </div>
     <div id="donMapView" class="hidden">
       <div id="donMap" class="don-map" aria-label="Carte des stations"></div>
+      <div class="don-map-legend" aria-label="Légende de la carte">
+        <span><i class="is-ok"></i>Transmet</span><span><i class="is-late"></i>En retard</span><span><i class="is-silent"></i>Muette</span><span><i class="is-pending"></i>Pas encore installée</span>
+      </div>
       <p class="don-hint" id="donMapHint"></p>
     </div>
   </section>
@@ -71,10 +86,7 @@ const TEMPLATE = `
         <h3>Pluie</h3>
         <div class="don-chart"><canvas id="donRainChart" aria-label="Pluie"></canvas></div>
       </article>
-      <article class="don-chart-card don-chart-wide hidden" id="donOtherCard">
-        <h3>Autres capteurs</h3>
-        <div class="don-chart"><canvas id="donOtherChart" aria-label="Autres capteurs"></canvas></div>
-      </article>
+      <div class="don-sensor-charts" id="donSensorCharts"></div>
     </div>
     <div class="don-daily">
       <h3>Résumé journalier</h3>
@@ -103,6 +115,7 @@ const TEMPLATE = `
       <label class="sam-field">Commentaire<textarea id="donFieldComment" rows="2" maxlength="400"></textarea></label>
       <label class="don-check"><input id="donFieldActive" type="checkbox"> Collecte automatique active</label>
       <label class="don-check"><input id="donFieldPublic" type="checkbox"> Visible sans compte (consultation libre)</label>
+      <label class="don-check"><input id="donFieldInstalled" type="checkbox"> Station installée sur le terrain</label>
       <p class="sam-form-message" id="donFormMessage" role="status"></p>
       <button class="sam-button sam-button-primary" type="submit">Enregistrer</button>
     </form>
@@ -140,8 +153,9 @@ function whenLabel(date) {
   return `le ${formatDateShort(dayKey(date))} à ${hourOf(date)}`;
 }
 function stateOf(station) {
+  const hours = station.derniere_mesure ? (Date.now() - new Date(station.derniere_mesure).getTime()) / HOUR : Infinity;
+  if (station.installee === false && hours > SILENT_HOURS) return { key: 'pending', label: 'Pas encore installée' };
   if (!station.derniere_mesure) return { key: 'never', label: 'Aucune donnée' };
-  const hours = (Date.now() - new Date(station.derniere_mesure).getTime()) / HOUR;
   if (!station.active) return { key: 'off', label: 'Collecte arrêtée' };
   if (hours <= LATE_HOURS) return { key: 'ok', label: 'Transmet' };
   if (hours <= SILENT_HOURS) return { key: 'late', label: 'En retard' };
@@ -182,8 +196,8 @@ export async function mount(root, ctx) {
   });
 
   const isAdmin = () => Boolean(ctx.isAdmin);
-  const sensorName = code => sensorLabels[code]?.libelle || BASE_SENSORS[code] || code;
-  const sensorUnit = code => sensorLabels[code]?.unite || '';
+  const sensorName = code => sensorLabels[code]?.libelle || BASE_SENSORS[code]?.[0] || code;
+  const sensorUnit = code => sensorLabels[code]?.unite || BASE_SENSORS[code]?.[1] || '';
   const selected = () => stations.find(s => s.id === selectedId) || null;
 
   function renderAdmin() {
@@ -264,13 +278,13 @@ export async function mount(root, ctx) {
       $('donNetworkSummary').textContent = '';
       return;
     }
-    const order = { ok: 0, late: 1, silent: 2, off: 3, never: 4 };
+    const order = { ok: 0, late: 1, silent: 2, off: 3, never: 4, pending: 5 };
     const sorted = [...stations].sort((a, b) => order[stateOf(a).key] - order[stateOf(b).key] || a.nom.localeCompare(b.nom, 'fr'));
-    // Les stations sans donnée récente sont repliées (sauf la station choisie).
-    const recent = s => ['ok', 'late'].includes(stateOf(s).key) || s.id === selectedId;
-    const hiddenCount = sorted.filter(s => !recent(s)).length;
-    const anyRecent = sorted.some(s => ['ok', 'late'].includes(stateOf(s).key));
-    const visible = showSilent || !anyRecent ? sorted : sorted.filter(recent);
+    // Les stations pas encore installées sont repliées (sauf la station choisie).
+    const shown = s => stateOf(s).key !== 'pending' || s.id === selectedId;
+    const hiddenCount = sorted.filter(s => !shown(s)).length;
+    const anyShown = sorted.some(s => stateOf(s).key !== 'pending');
+    const visible = showSilent || !anyShown ? sorted : sorted.filter(shown);
     body.innerHTML = visible.map(station => {
       const state = stateOf(station);
       const info = latest.get(station.id);
@@ -285,18 +299,20 @@ export async function mount(root, ctx) {
         <td data-label="Pluie 24 h" data-short="pluie 24 h " class="don-col-value">${info ? `${formatNumber(info.rain, 1)} mm` : '—'}</td>
         <td data-label="Batterie" class="don-col-bat">${bat !== null ? `${formatNumber(bat, 1)} V` : '—'}</td>
       </tr>`;
-    }).join('') + (anyRecent && hiddenCount ? `<tr class="don-more-row"><td colspan="7"><button type="button" class="don-btn don-more" aria-expanded="${showSilent}">${showSilent ? 'Masquer les stations sans donnée récente' : `Afficher les ${hiddenCount} stations sans donnée récente`}</button></td></tr>` : '');
+    }).join('') + (anyShown && hiddenCount ? `<tr class="don-more-row"><td colspan="7"><button type="button" class="don-btn don-more" aria-expanded="${showSilent}">${showSilent ? 'Masquer les stations pas encore installées' : `Afficher les ${hiddenCount} station${hiddenCount > 1 ? 's' : ''} pas encore installée${hiddenCount > 1 ? 's' : ''}`}</button></td></tr>` : '');
     const transmitting = stations.filter(s => stateOf(s).key === 'ok').length;
+    const pending = stations.filter(s => stateOf(s).key === 'pending').length;
     const syncs = stations.map(s => s.derniere_synchro).filter(Boolean).sort();
     const lastSync = syncs.length ? new Date(syncs[syncs.length - 1]) : null;
-    $('donNetworkSummary').textContent = `${stations.length} stations · ${transmitting} transmettent${lastSync ? ` · dernière collecte ${whenLabel(lastSync)}` : ''}`;
+    $('donNetworkSummary').textContent = `${stations.length} stations · ${transmitting} transmettent${pending ? ` · ${pending} pas encore installée${pending > 1 ? 's' : ''}` : ''}${lastSync ? ` · dernière collecte ${whenLabel(lastSync)}` : ''}`;
   }
 
   function renderSelect() {
     const groups = [
       ['Transmettent', s => stateOf(s).key === 'ok'],
       ['En retard', s => stateOf(s).key === 'late'],
-      ['Sans donnée récente', s => ['silent', 'off', 'never'].includes(stateOf(s).key)]
+      ['Sans donnée récente', s => ['silent', 'off', 'never'].includes(stateOf(s).key)],
+      ['Pas encore installées', s => stateOf(s).key === 'pending']
     ];
     $('donStationSelect').innerHTML = groups.map(([label, test]) => {
       const list = stations.filter(test).sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
@@ -309,7 +325,10 @@ export async function mount(root, ctx) {
   // Carte
   // -------------------------------------------------------------------------
   async function renderMap() {
-    const located = stations.filter(s => Number.isFinite(s.latitude) && Number.isFinite(s.longitude));
+    // Stations à venir dessinées d'abord, pour que les stations actives restent au-dessus.
+    const located = stations
+      .filter(s => Number.isFinite(s.latitude) && Number.isFinite(s.longitude))
+      .sort((a, b) => (stateOf(b).key === 'pending') - (stateOf(a).key === 'pending'));
     $('donMapHint').textContent = located.length
       ? `${located.length} station${located.length > 1 ? 's' : ''} sur ${stations.length} placée${located.length > 1 ? 's' : ''} sur la carte.`
       : 'Aucune station n’a encore de coordonnées : un administrateur peut les saisir dans la « Fiche station » de chaque station.';
@@ -327,11 +346,19 @@ export async function mount(root, ctx) {
       ctx.scope.add(() => { map?.remove(); map = null; });
     }
     mapLayer.clearLayers();
-    const colors = { ok: '#2e7d32', late: '#e08a00', silent: '#8a9099', off: '#8a9099', never: '#b8bcc4' };
+    const colors = { ok: '#2e7d32', late: '#e08a00', silent: '#8a9099', off: '#8a9099', never: '#b8bcc4', pending: '#ffffff' };
     located.forEach(station => {
       const state = stateOf(station);
       const last = latest.get(station.id)?.last;
-      const marker = L.circleMarker([station.latitude, station.longitude], { radius: 9, weight: 2, color: '#fff', fillColor: colors[state.key], fillOpacity: 0.95 });
+      const pendingStyle = state.key === 'pending';
+      const marker = L.circleMarker([station.latitude, station.longitude], {
+        radius: pendingStyle ? 7 : 9,
+        weight: 2,
+        color: pendingStyle ? '#8a9099' : '#fff',
+        dashArray: pendingStyle ? '3 3' : null,
+        fillColor: colors[state.key],
+        fillOpacity: pendingStyle ? 0.9 : 0.95
+      });
       marker.bindPopup(`<strong>${escapeHtml(station.nom)}</strong><br>${state.label}${last ? `<br>${formatNumber(num(last.t_air), 1)} °C · ${formatNumber(num(last.hr), 0)} % · pluie 24 h ${formatNumber(latest.get(station.id).rain, 1)} mm` : ''}<br><button type="button" class="don-map-open" data-station="${escapeHtml(station.id)}">Voir la station</button>`);
       marker.addTo(mapLayer);
     });
@@ -441,7 +468,12 @@ export async function mount(root, ctx) {
     $('donStationState').textContent = state.label;
     $('donStationState').title = station.derniere_erreur || '';
 
-    const sensors = (station.capteurs || []).map(code => `${sensorName(code)}${sensorUnit(code) ? ` (${sensorUnit(code)})` : ''}`);
+    const sensors = (station.capteurs || []).map(code => {
+      const name = sensorName(code);
+      const unit = sensorUnit(code);
+      if (!unit) return name;
+      return name.endsWith(')') ? `${name.slice(0, -1)}, ${unit})` : `${name} (${unit})`;
+    });
     const meta = [
       `<span>${escapeHtml(station.id)}</span>`,
       station.commune ? `<span>${escapeHtml(station.commune)}</span>` : '',
@@ -543,17 +575,38 @@ export async function mount(root, ctx) {
       options: baseOptions({ scales: timeScales(rainPoints.length, { yR: { position: 'left', beginAtZero: true, title: { display: true, text: 'mm' } }, yC: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, title: { display: true, text: 'cumul (mm)' } } }) })
     });
 
-    // Autres capteurs (sondes de sol…)
-    const codes = otherCodes();
-    $('donOtherCard').classList.toggle('hidden', !codes.length);
-    if (codes.length) {
-      const labels = hourlyView ? slots.map(s => slotLabel(s.at)) : days.map(d => formatDayMonth(d.day));
-      draw('other', 'donOtherChart', {
+    // Capteurs complémentaires : un graphique par famille (tensiomètres, humidité du sol, humectation…)
+    renderSensorCharts(hourlyView, slots, days, slotLabel);
+  }
+
+  function sensorGroups() {
+    const groups = SENSOR_GROUPS.map(group => ({ ...group, codes: [] }));
+    otherCodes().forEach(code => groups.find(group => group.test(code)).codes.push(code));
+    return groups.filter(group => group.codes.length);
+  }
+
+  function renderSensorCharts(hourlyView, slots, days, slotLabel) {
+    const groups = sensorGroups();
+    const container = $('donSensorCharts');
+    const wanted = groups.map(group => group.id).join(',');
+    if (container.dataset.groups !== wanted) {
+      Object.keys(charts).filter(key => key.startsWith('sensor-')).forEach(key => { charts[key].destroy(); delete charts[key]; });
+      container.innerHTML = groups.map(group => `<article class="don-chart-card${groups.length === 1 ? ' don-chart-wide' : ''}">
+        <h3>${escapeHtml(group.title)}${group.unit ? ` <small>(${escapeHtml(group.unit)})</small>` : ''}</h3>
+        ${group.hint ? `<p class="don-chart-hint">${escapeHtml(group.hint)}</p>` : ''}
+        <div class="don-chart"><canvas id="donSensor-${group.id}" aria-label="${escapeHtml(group.title)}"></canvas></div>
+      </article>`).join('');
+      container.dataset.groups = wanted;
+    }
+    container.classList.toggle('hidden', !groups.length);
+    const labels = hourlyView ? slots.map(s => slotLabel(s.at)) : days.map(d => formatDayMonth(d.day));
+    groups.forEach(group => {
+      draw(`sensor-${group.id}`, `donSensor-${group.id}`, {
         type: 'line',
         data: {
           labels,
-          datasets: codes.map((code, i) => ({
-            label: `${sensorName(code)}${sensorUnit(code) ? ` (${sensorUnit(code)})` : ''}${hourlyView ? '' : ' · moyenne du jour'}`,
+          datasets: group.codes.map((code, i) => ({
+            label: `${sensorName(code)}${!group.unit && sensorUnit(code) ? ` (${sensorUnit(code)})` : ''}${hourlyView ? '' : ' · moyenne du jour'}`,
             data: hourlyView ? slots.map(s => num(s.row?.others?.[code])) : days.map(d => round(d.others[code] ?? null)),
             borderColor: SENSOR_COLORS[i % SENSOR_COLORS.length],
             backgroundColor: SENSOR_COLORS[i % SENSOR_COLORS.length],
@@ -562,12 +615,9 @@ export async function mount(root, ctx) {
             tension: 0.2
           }))
         },
-        options: baseOptions({ scales: timeScales(labels.length, { y: { position: 'left' } }) })
+        options: baseOptions({ scales: timeScales(labels.length, { y: { position: 'left', title: { display: Boolean(group.unit), text: group.unit } } }) })
       });
-    } else if (charts.other) {
-      charts.other.destroy();
-      delete charts.other;
-    }
+    });
   }
 
   function timeScales(count, yScales) {
@@ -667,6 +717,7 @@ export async function mount(root, ctx) {
     $('donFieldComment').value = station.commentaire || '';
     $('donFieldActive').checked = Boolean(station.active);
     $('donFieldPublic').checked = Boolean(station.publique);
+    $('donFieldInstalled').checked = station.installee !== false;
     $('donFormMessage').textContent = '';
     $('donStationDialog').showModal();
   }
@@ -685,6 +736,7 @@ export async function mount(root, ctx) {
       commentaire: $('donFieldComment').value.trim() || null,
       active: $('donFieldActive').checked,
       publique: $('donFieldPublic').checked,
+      installee: $('donFieldInstalled').checked,
       updated_at: new Date().toISOString()
     };
     if ((payload.latitude === null) !== (payload.longitude === null)) {

@@ -68,11 +68,20 @@
 .tool-donnees .don-state.is-late { background: #fff4e0; color: #9a5a00; }
 .tool-donnees .don-state.is-late::before { background: #e08a00; }
 .tool-donnees .don-state.is-silent::before, .tool-donnees .don-state.is-off::before { background: #8a9099; }
+.tool-donnees .don-state.is-pending { background: #fff; border: 1px dashed #b8bcc4; color: var(--sam-muted); }
+.tool-donnees .don-state.is-pending::before { background: #fff; border: 1.5px solid #8a9099; width: 6px; height: 6px; }
 .tool-donnees .don-state:empty { display: none; }
 
 /* Carte */
 .tool-donnees .don-map { height: 460px; border: 1px solid var(--sam-line); border-radius: 10px; overflow: hidden; }
 .tool-donnees .don-hint { margin: 10px 0 0; color: var(--sam-muted); font-size: .86rem; }
+.tool-donnees .don-map-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; color: var(--sam-ink-2); font-size: .82rem; }
+.tool-donnees .don-map-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.tool-donnees .don-map-legend i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.15); }
+.tool-donnees .don-map-legend i.is-ok { background: #2e7d32; }
+.tool-donnees .don-map-legend i.is-late { background: #e08a00; }
+.tool-donnees .don-map-legend i.is-silent { background: #8a9099; }
+.tool-donnees .don-map-legend i.is-pending { background: #fff; border: 2px dashed #8a9099; box-shadow: none; }
 .tool-donnees .don-map-open { margin-top: 6px; padding: 5px 10px; border: 1px solid var(--sam-red-700); border-radius: 7px; background: #fff; color: var(--sam-red-700); font: inherit; font-size: .8rem; font-weight: 700; cursor: pointer; }
 
 /* Station */
@@ -104,6 +113,10 @@
 .tool-donnees .don-chart-card { padding: 14px 16px 10px; border: 1px solid var(--sam-line); border-radius: 10px; }
 .tool-donnees .don-chart-card.hidden { display: none; }
 .tool-donnees .don-chart-wide { grid-column: 1 / -1; }
+.tool-donnees .don-sensor-charts { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.tool-donnees .don-sensor-charts.hidden { display: none; }
+.tool-donnees .don-chart-card h3 small { color: var(--sam-muted); font-weight: 600; }
+.tool-donnees .don-chart-hint { margin: -4px 0 8px; color: var(--sam-muted); font-size: .8rem; }
 .tool-donnees .don-chart-card h3, .tool-donnees .don-daily h3 { margin: 0 0 8px; font-size: 1rem; }
 .tool-donnees .don-chart { position: relative; height: 290px; }
 .tool-donnees .don-daily { margin-top: 22px; }
@@ -116,7 +129,7 @@
 .tool-donnees .don-check { display: flex; align-items: center; gap: 8px; font-size: .9rem; }
 
 @media (max-width: 1100px) {
-  .tool-donnees .don-charts { grid-template-columns: 1fr; }
+  .tool-donnees .don-charts, .tool-donnees .don-sensor-charts { grid-template-columns: 1fr; }
 }
 @media (max-width: 760px) {
   .tool-donnees .don-card { padding: 16px 14px 18px; }
