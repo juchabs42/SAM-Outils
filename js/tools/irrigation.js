@@ -105,11 +105,10 @@ const TEMPLATE = `
     <div class="irr-legend">
       <span><i class="irr-swatch is-et0"></i>ET₀ (mm)</span>
       <span><i class="irr-swatch is-rain"></i>Pluie (mm)</span>
-      <span><i class="irr-swatch is-before"></i>Teinte pâle : 7 jours avant la période</span>
       <span><i class="irr-swatch is-forecast"></i>Début des prévisions</span>
     </div>
     <div class="irr-chart"><canvas id="weatherChart" aria-label="ET0 et pluie journalières"></canvas></div>
-    <p class="muted irr-chart-hint">Survolez (ou touchez) le graphique pour lire les valeurs du jour.</p>
+
   </section>
   <p id="updatedAt" class="muted center"></p>
   <p class="attribution">Données météo : Open-Meteo. Prototype SudExpé.</p>
@@ -147,19 +146,20 @@ const LEGACY_STORAGE_KEY = 'samIrrigationPeriodV1';
 
 function num(value, fallback = 0) { const n = Number(value); return Number.isFinite(n) ? n : fallback; }
 
-// L'API de prévision annonce 92 jours passés, mais les plus anciens arrivent vides (null) :
-// on ne garde que les jours où ET0 et pluie sont réellement fournis.
-function availableRows(daily) {
-  const rows = (daily?.time || []).map((date, index) => ({
-    date,
-    etp: daily.et0_fao_evapotranspiration?.[index],
-    rain: daily.precipitation_sum?.[index]
-  }));
-  const first = rows.findIndex(row => row.etp != null && row.rain != null);
-  if (first < 0) return [];
-  let last = rows.length - 1;
-  while (last > first && (rows[last].etp == null || rows[last].rain == null)) last--;
-  return rows.slice(first, last + 1).map(row => ({ date: row.date, etp: num(row.etp), rain: num(row.rain) }));
+// Comme le Bilan hydrique et les Indicateurs : réanalyse (ERA5) jusqu'à J−8,
+// modèles de prévision pour les 7 derniers jours et les jours à venir. Les jours
+// vides (null) renvoyés par l'une ou l'autre source sont ignorés.
+function mergeWeatherRows(forecastDaily, archiveDaily, modelsFrom) {
+  const map = new Map();
+  const add = (daily, before) => (daily?.time || []).forEach((date, index) => {
+    const etp = daily.et0_fao_evapotranspiration?.[index];
+    const rain = daily.precipitation_sum?.[index];
+    if (etp == null || rain == null || (before && date >= before)) return;
+    map.set(date, { date, etp: num(etp), rain: num(rain) });
+  });
+  add(forecastDaily);
+  add(archiveDaily, modelsFrom);
+  return [...map.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
 function round(value, decimals = 2) { const f = 10 ** decimals; return Math.round((num(value) + Number.EPSILON) * f) / f; }
 function fr(value, decimals = 2) { return round(value, decimals).toLocaleString('fr-FR', { maximumFractionDigits: decimals }); }
@@ -189,10 +189,10 @@ export async function mount(root, ctx) {
       presets.lastDays(7, '7 derniers jours (a posteriori)')
     ],
     defaultPreset: 'next7',
-    min: () => addDaysISO(todayISO(), -55),
+    min: () => addDaysISO(todayISO(), -90),
     max: () => addDaysISO(todayISO(), 15),
     maxDays: 16,
-    hint: 'Données disponibles : deux derniers mois environ et 16 jours de prévisions.'
+    hint: 'Données disponibles : 3 derniers mois et 16 jours de prévisions.'
   });
 
   function settings() {
@@ -355,6 +355,19 @@ export async function mount(root, ctx) {
         past_days: '92',
         forecast_days: '16'
       }).toString();
+      const modelsFrom = addDaysISO(todayISO(), -7);
+      const archiveUrl = new URL('https://archive-api.open-meteo.com/v1/archive');
+      archiveUrl.search = new URLSearchParams({
+        latitude: place.latitude.toFixed(4),
+        longitude: place.longitude.toFixed(4),
+        daily: 'et0_fao_evapotranspiration,precipitation_sum',
+        timezone: 'Europe/Paris',
+        start_date: addDaysISO(todayISO(), -92),
+        end_date: addDaysISO(modelsFrom, -1)
+      }).toString();
+      const archivePromise = fetch(archiveUrl, { cache: 'no-store' })
+        .then(r => (r.ok ? r.json() : null))
+        .catch(() => null); // réanalyse indisponible : les modèles suffisent pour les jours récents
       let response = await fetch(url, { cache: 'no-store' });
       if (!response.ok) {
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -362,8 +375,9 @@ export async function mount(root, ctx) {
       }
       if (!response.ok) throw new Error(`Open-Meteo répond ${response.status}.`);
       const data = await response.json();
+      const archive = await archivePromise;
       if (ctx.scope.disposed) return;
-      weatherRows = availableRows(data.daily);
+      weatherRows = mergeWeatherRows(data.daily, archive?.daily, modelsFrom);
       weatherMeta = { place: place.name, savedAt: null };
       storage.set(cacheKey, { savedAt: new Date().toISOString(), rows: weatherRows });
       updateDateLimits();

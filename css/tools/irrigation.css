@@ -213,7 +213,11 @@
 }
 
 /* Intégration dans SAM Outils */
-.tool-irrigation .tool-main { max-width: 1000px; }
+/* Pleine largeur, comme les autres outils (la page se centre avec le menu replié). */
+@media (min-width: 900px) {
+  .tool-irrigation .form-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .tool-irrigation .result-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+}
 .tool-irrigation .card { border: 1px solid var(--sam-line); border-radius: 12px; box-shadow: var(--sam-shadow-sm); }
 .tool-irrigation .button-row { display: flex; flex-wrap: wrap; gap: 10px; }
 .tool-irrigation .period-preview .muted { font-size: .86rem; }
@@ -226,9 +230,7 @@
 .tool-irrigation .irr-swatch { display: inline-block; width: 13px; height: 10px; border-radius: 2px; }
 .tool-irrigation .irr-swatch.is-et0 { background: #f0892c; }
 .tool-irrigation .irr-swatch.is-rain { background: #3b8ad9; }
-.tool-irrigation .irr-swatch.is-before { background: linear-gradient(90deg, rgba(240,137,44,.42) 50%, rgba(59,138,217,.42) 50%); }
 .tool-irrigation .irr-swatch.is-forecast { width: 0; height: 14px; border-left: 2px dashed #D30D43; border-radius: 0; }
-.tool-irrigation .irr-chart-hint { margin: 8px 0 0; font-size: .8rem; }
 @media (max-width: 760px) {
   .tool-irrigation .irr-chart { height: 250px; }
 }

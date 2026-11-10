@@ -627,3 +627,8 @@
   .tool-indicateurs .ind-card-head h3 { flex-basis: 100%; }
   .tool-indicateurs .ind-chart { height: 240px; }
 }
+
+/* DPV de la vue d'ensemble : même graphique que l'onglet DPV, légende des seuils compacte */
+.tool-indicateurs .vpd-legend-inline.is-compact { gap: 6px; margin-top: 10px; }
+.tool-indicateurs .vpd-legend-inline.is-compact .vpd-legend-item { padding: 4px 8px; font-size: .72rem; }
+.tool-indicateurs .vpd-legend-inline.is-compact .vpd-swatch { width: 11px; height: 11px; }

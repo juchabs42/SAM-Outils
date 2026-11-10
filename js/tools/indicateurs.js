@@ -37,8 +37,8 @@ const TEMPLATE = `
           ${segmented('ovVpd')}
           ${moreMenu('ovVpd')}
         </header>
-        <div class="ind-legend"><span class="ind-legend-line"></span>DPV moyen (kPa)<span class="ind-legend-line is-dashed"></span>DPV max (kPa)</div>
-        <div class="ind-chart"><canvas id="ovVpdChart" aria-label="DPV moyen journalier"></canvas></div>
+        <div class="ind-chart ind-chart-vpd"><canvas id="ovVpdChart" aria-label="DPV et seuils de demande atmosphérique"></canvas></div>
+        ${vpdLegend('is-compact')}
       </article>
       <article class="ind-card">
         <header class="ind-card-head">
@@ -55,7 +55,7 @@ const TEMPLATE = `
 
   <!-- PRÉVISIONS MÉTÉO -->
   <section class="ind-panel" data-panel="meteo">
-    <div class="section-heading"><div><p class="eyebrow">Prévisions</p><h2>Prévisions météo</h2><p>Températures, pluie, humidité et vent prévus au lieu choisi, à partir d’aujourd’hui (indépendant de la période).</p></div></div>
+    <div class="section-heading"><div><p class="eyebrow">Prévisions</p><h2>Prévisions météo</h2></div></div>
     <div class="controls compact-controls">
       <label>Nombre de jours à afficher
         <select id="weatherDays"><option value="3">3 jours</option><option value="5">5 jours</option><option value="7" selected>7 jours</option></select>
@@ -72,7 +72,7 @@ const TEMPLATE = `
 
   <!-- DÉFICIT CLIMATIQUE -->
   <section class="ind-panel" data-panel="deficit">
-    <div class="section-heading"><div><p class="eyebrow">Bilan climatique</p><h2>Déficit climatique cumulé</h2><p>ET₀ − pluie sur la période choisie (historique disponible depuis 1940).</p></div></div>
+    <div class="section-heading"><div><p class="eyebrow">Bilan climatique</p><h2>Déficit climatique cumulé</h2><p>ET₀ − pluie sur la période choisie.</p></div></div>
     <div class="metric-grid">
       <article class="metric-card"><p>ET₀ cumulée</p><strong id="et0Total">—</strong><span>Période sélectionnée</span></article>
       <article class="metric-card"><p>Pluie cumulée</p><strong id="rainTotal">—</strong><span>100 % prise en compte</span></article>
@@ -89,14 +89,7 @@ const TEMPLATE = `
     <p class="ind-note" id="vpdNote"></p>
     <article class="panel">
       <div class="chart-wrap large"><canvas id="vpdChart"></canvas></div>
-      <div class="vpd-legend-inline" aria-label="Légende des bandes de DPV">
-        <span class="vpd-legend-item"><span class="vpd-swatch swatch-blue"></span>0–0,8 kPa · Faible demande</span>
-        <span class="vpd-legend-item"><span class="vpd-swatch swatch-green"></span>0,8–1,6 kPa · Conditions favorables</span>
-        <span class="vpd-legend-item"><span class="vpd-swatch swatch-yellow"></span>1,6–2,5 kPa · Régulation stomatique</span>
-        <span class="vpd-legend-item"><span class="vpd-swatch swatch-orange"></span>2,5–3,5 kPa · Contrainte élevée</span>
-        <span class="vpd-legend-item"><span class="vpd-swatch swatch-red"></span>3,5–4,5 kPa · Stress sévère</span>
-        <span class="vpd-legend-item"><span class="vpd-swatch swatch-purple"></span>&gt; 4,5 kPa · Stress extrême</span>
-      </div>
+      ${vpdLegend()}
     </article>
     <article class="panel"><h3>Heures cumulées au-dessus des seuils</h3><div class="chart-wrap"><canvas id="thresholdChart"></canvas></div></article>
   </section>
@@ -121,7 +114,7 @@ const TEMPLATE = `
       <article class="method-card"><h3>Déficit climatique</h3><p>Calcul journalier ET₀ − pluie, cumulé sur la période sélectionnée. Le bilan peut devenir négatif lorsque les pluies cumulées dépassent l’ET₀.</p></article>
       <article class="method-card"><h3>DPV</h3><p>Calculé à partir de la température et de l’humidité relative horaires. La zone de conditions favorables est fixée entre 0,8 et 1,6 kPa.</p></article>
       <article class="method-card"><h3>Indice de contrainte</h3><p>40 % intensité du DPV (moyenne des 3 heures présentant les DPV les plus élevés), 30 % durée avec DPV &gt; 2,5 kPa, 20 % durée de forte chaleur avec température &gt; 35 °C et 10 % ET₀.</p></article>
-      <article class="method-card"><h3>Sources</h3><p>Données Open-Meteo : prévisions et deux derniers mois environ (modèles de prévision), historique au-delà (réanalyse ERA5, depuis 1940).</p></article>
+      <article class="method-card"><h3>Sources</h3><p>Données Open-Meteo : réanalyse ERA5 (historique depuis 1940) jusqu’à 8 jours avant aujourd’hui, puis modèles de prévision pour les 7 derniers jours et les jours à venir, comme dans le Bilan hydrique.</p></article>
     </div>
     <div class="warning-box method-warning"><strong>À savoir :</strong> l’indice de contrainte est un indicateur d’aide à l’interprétation. Il donne une idée synthétique des conditions climatiques, mais ne constitue pas un modèle scientifique validé.</div>
   </section>
@@ -182,6 +175,17 @@ function comparisonPeriod(start, end) {
   return length >= 365
     ? { start: pStart, end: pEnd, short: 'vs année précédente', long: 'l’année précédente', against: 'à l’année précédente' }
     : { start: pStart, end: pEnd, short: 'vs même période l’an passé', long: 'la même période l’an passé', against: 'à la même période l’an passé' };
+}
+
+function vpdLegend(modifier = '') {
+  return `<div class="vpd-legend-inline ${modifier}" aria-label="Légende des bandes de DPV">
+    <span class="vpd-legend-item"><span class="vpd-swatch swatch-blue"></span>0–0,8 kPa · Faible demande</span>
+    <span class="vpd-legend-item"><span class="vpd-swatch swatch-green"></span>0,8–1,6 kPa · Conditions favorables</span>
+    <span class="vpd-legend-item"><span class="vpd-swatch swatch-yellow"></span>1,6–2,5 kPa · Régulation stomatique</span>
+    <span class="vpd-legend-item"><span class="vpd-swatch swatch-orange"></span>2,5–3,5 kPa · Contrainte élevée</span>
+    <span class="vpd-legend-item"><span class="vpd-swatch swatch-red"></span>3,5–4,5 kPa · Stress sévère</span>
+    <span class="vpd-legend-item"><span class="vpd-swatch swatch-purple"></span>&gt; 4,5 kPa · Stress extrême</span>
+  </div>`;
 }
 
 function segmented(id) {
@@ -289,6 +293,7 @@ const ET0_COLOR = '#f0892c';
 const HOURLY_VARS = ['temperature_2m', 'relative_humidity_2m', 'precipitation', 'wind_speed_10m'];
 const DAILY_VARS = ['precipitation_sum', 'et0_fao_evapotranspiration', 'temperature_2m_max', 'temperature_2m_min'];
 const MAX_HOURLY_DAYS = 800;
+const RECENT_MODEL_DAYS = 7; // jours passés pris dans les modèles de prévision (comme le Bilan hydrique)
 
 async function fetchJson(url) {
   let response = await fetch(url, { cache: 'no-store' });
@@ -425,24 +430,42 @@ function createWeatherStore() {
     }
   }
 
-  /** Données journalières et horaires pour [start, end] (prévisions + historique). */
+  /**
+   * Données journalières et horaires pour [start, end].
+   * Comme le Bilan hydrique : réanalyse (ERA5) jusqu'à J−8, modèles de prévision
+   * pour les 7 derniers jours et les jours à venir. Les modèles ne servent avant
+   * J−7 que si la réanalyse n'a pas encore de valeur pour ce jour.
+   */
   async function range(place, start, end, { hourly = true } = {}) {
     const rec = await loadRecent(place);
-    const recentStart = rec.daily[0]?.date || todayISO();
+    const today = todayISO();
+    const modelsFrom = addDaysISO(today, -RECENT_MODEL_DAYS);
+    const recentFirst = rec.daily[0]?.date || today;
     const needHourly = hourly && diffDaysISO(start, end) + 1 <= MAX_HOURLY_DAYS;
-    if (start < recentStart) {
-      const archiveEnd = end < recentStart ? end : addDaysISO(recentStart, -1);
-      await loadArchive(place, start, archiveEnd, needHourly);
+    const archiveEnd = end < modelsFrom ? end : addDaysISO(modelsFrom, -1);
+    if (start <= archiveEnd) {
+      try {
+        await loadArchive(place, start, archiveEnd, needHourly);
+      } catch (error) {
+        // Réanalyse indisponible : on garde les modèles s'ils couvrent la période.
+        if (start < recentFirst) throw error;
+        console.warn('Réanalyse indisponible, modèles de prévision utilisés', error);
+      }
     }
+    const inRange = date => date >= start && date <= end;
     const dailyMap = new Map();
-    archiveDaily.forEach((row, date) => { if (date >= start && date <= end) dailyMap.set(date, row); });
-    rec.daily.forEach(row => { if (row.date >= start && row.date <= end) dailyMap.set(row.date, row); });
+    rec.daily.forEach(row => { if (inRange(row.date)) dailyMap.set(row.date, row); });
+    archiveDaily.forEach((row, date) => {
+      if (inRange(date) && date < modelsFrom && Number.isFinite(row.rain) && Number.isFinite(row.et0)) dailyMap.set(date, row);
+    });
     const daily = [...dailyMap.values()].sort((a, b) => a.date.localeCompare(b.date));
     let hours = null;
     if (needHourly) {
       const hourMap = new Map();
-      archiveHourly.forEach((row, time) => { if (row.date >= start && row.date <= end) hourMap.set(time, row); });
-      rec.hourly.forEach(row => { if (row.date >= start && row.date <= end) hourMap.set(row.time, row); });
+      rec.hourly.forEach(row => { if (inRange(row.date)) hourMap.set(row.time, row); });
+      archiveHourly.forEach((row, time) => {
+        if (inRange(row.date) && row.date < modelsFrom && Number.isFinite(row.temperature)) hourMap.set(time, row);
+      });
       hours = [...hourMap.values()].sort((a, b) => a.time.localeCompare(b.time));
     }
     return { daily, hourly: hours };
@@ -653,23 +676,9 @@ export async function mount(root, ctx) {
     $('ovNote').textContent = notes.join(' ');
     updateSegments();
 
-    // DPV moyen / max journalier
-    const vpdDays = dailyVpd(dataset.cur.hourly);
-    draw('ovVpd', 'ovVpdChart', {
-      type: 'line',
-      data: {
-        labels: vpdDays.map(d => formatDayMonth(d.date)),
-        datasets: [
-          { label: 'DPV moyen (kPa)', data: vpdDays.map(d => d.mean), borderColor: '#db0b1f', backgroundColor: '#db0b1f', borderWidth: 2.2, pointRadius: vpdDays.length > 45 ? 0 : 3.5, pointHoverRadius: 5, tension: 0.38 },
-          { label: 'DPV max (kPa)', data: vpdDays.map(d => d.max), borderColor: 'rgba(219,11,31,.45)', borderDash: [5, 4], borderWidth: 1.6, pointRadius: 0, tension: 0.3 }
-        ]
-      },
-      options: {
-        ...chartBase,
-        plugins: { ...chartBase.plugins, tooltip: { ...chartBase.plugins.tooltip, callbacks: { label: c => `${c.dataset.label} : ${formatNumber(c.parsed.y, 2)}` } } },
-        scales: { ...chartBase.scales, y: { ...chartBase.scales.y, suggestedMax: 2, ticks: { ...chartBase.scales.y.ticks, callback: v => formatNumber(v, 1) } } }
-      }
-    });
+    // DPV : même graphique que l'onglet DPV, avec les bandes de seuils
+    if (dataset.cur.hourly?.length) draw('ovVpd', 'ovVpdChart', vpdChartConfig(dataset.cur.hourly).config);
+    else if (charts.ovVpd) { charts.ovVpd.destroy(); delete charts.ovVpd; }
 
     // Pluie / ET0
     const agg = aggregateDaily(dataset.cur.daily);
@@ -813,6 +822,41 @@ export async function mount(root, ctx) {
   }
 
   // --- DPV ----------------------------------------------------------------
+  /** Graphique DPV avec bandes de seuils : horaire jusqu'à 21 jours, sinon moyenne et maximum journaliers. */
+  function vpdChartConfig(hours) {
+    const nDays = new Set(hours.map(h => h.date)).size;
+    const hourlyView = nDays <= 21;
+    const plugins = { ...legacyBase.plugins, samVpdBands: { enabled: true }, tooltip: { padding: 10, cornerRadius: 8, callbacks: { label: c => `${c.dataset.label} : ${formatNumber(c.parsed.y, 2)} kPa` } } };
+    const y = { beginAtZero: true, suggestedMax: 5.5, title: { display: true, text: 'DPV (kPa)' }, ticks: { callback: v => formatNumber(v, 1) } };
+    if (hourlyView) {
+      return {
+        hourlyView,
+        config: {
+          type: 'line',
+          data: { labels: hours.map(h => hourLabel(h.time)), datasets: [{ label: 'DPV', data: hours.map(h => h.vpd), borderColor: '#7f1d2d', backgroundColor: '#7f1d2d', pointRadius: hours.length > 96 ? 0 : 1.5, tension: 0.2 }] },
+          options: { ...legacyBase, plugins, scales: { x: dayOnlyXAxis(hours), y } },
+          plugins: [vpdBandsPlugin]
+        }
+      };
+    }
+    const days = dailyVpd(hours);
+    return {
+      hourlyView,
+      config: {
+        type: 'line',
+        data: {
+          labels: days.map(d => formatDayMonth(d.date)),
+          datasets: [
+            { label: 'DPV moyen', data: days.map(d => d.mean), borderColor: '#7f1d2d', backgroundColor: '#7f1d2d', pointRadius: 0, tension: 0.2 },
+            { label: 'DPV max', data: days.map(d => d.max), borderColor: '#c5011a', backgroundColor: '#c5011a', borderDash: [5, 4], pointRadius: 0, tension: 0.2 }
+          ]
+        },
+        options: { ...legacyBase, plugins, scales: { x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } }, y } },
+        plugins: [vpdBandsPlugin]
+      }
+    };
+  }
+
   function renderVpd() {
     if (!dataset) return;
     const hours = dataset.cur.hourly;
@@ -820,32 +864,10 @@ export async function mount(root, ctx) {
       $('vpdNote').textContent = 'Le DPV horaire n’est disponible que pour des périodes de moins de deux ans.';
       return;
     }
-    const nDays = new Set(hours.map(h => h.date)).size;
-    const hourlyView = nDays <= 21;
-    $('vpdTitle').textContent = hourlyView ? 'DPV horaire' : 'DPV journalier (moyenne et maximum)';
-    $('vpdNote').textContent = hourlyView ? '' : 'Période longue : affichage des moyennes et maximums journaliers.';
-    if (hourlyView) {
-      draw('vpd', 'vpdChart', {
-        type: 'line',
-        data: { labels: hours.map(h => hourLabel(h.time)), datasets: [{ label: 'DPV', data: hours.map(h => h.vpd), borderColor: '#7f1d2d', pointRadius: hours.length > 96 ? 0 : 1.5, tension: 0.2 }] },
-        options: { ...legacyBase, plugins: { ...legacyBase.plugins, samVpdBands: { enabled: true } }, scales: { x: dayOnlyXAxis(hours), y: { beginAtZero: true, suggestedMax: 5.5, title: { display: true, text: 'DPV (kPa)' } } } },
-        plugins: [vpdBandsPlugin]
-      });
-    } else {
-      const days = dailyVpd(hours);
-      draw('vpd', 'vpdChart', {
-        type: 'line',
-        data: {
-          labels: days.map(d => formatDayMonth(d.date)),
-          datasets: [
-            { label: 'DPV moyen', data: days.map(d => d.mean), borderColor: '#7f1d2d', pointRadius: 0, tension: 0.2 },
-            { label: 'DPV max', data: days.map(d => d.max), borderColor: '#c5011a', borderDash: [5, 4], pointRadius: 0, tension: 0.2 }
-          ]
-        },
-        options: { ...legacyBase, plugins: { ...legacyBase.plugins, samVpdBands: { enabled: true } }, scales: { x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } }, y: { beginAtZero: true, suggestedMax: 5.5, title: { display: true, text: 'DPV (kPa)' } } } },
-        plugins: [vpdBandsPlugin]
-      });
-    }
+    const vpd = vpdChartConfig(hours);
+    $('vpdTitle').textContent = vpd.hourlyView ? 'DPV horaire' : 'DPV journalier (moyenne et maximum)';
+    $('vpdNote').textContent = vpd.hourlyView ? '' : 'Période longue : affichage des moyennes et maximums journaliers.';
+    draw('vpd', 'vpdChart', vpd.config);
     const thresholds = [1.5, 2.5, 3.5, 4.5];
     draw('threshold', 'thresholdChart', {
       type: 'bar',

@@ -6,7 +6,7 @@ import { places, searchPlaces, locateMe, placeLabel } from './places.js';
 import { period } from './period.js';
 import { storage, debounce, escapeHtml, formatDateShort, loadScript, loadCss, VENDOR, isISODate, todayISO } from './util.js';
 
-const APP_VERSION = '2026-11-10.1';
+const APP_VERSION = '2026-11-10.2';
 
 export const TOOLS = [
   { id: 'indicateurs', title: 'SAM Indicateurs agroclimatiques', card: 'Indicateurs <br>agro&shy;clima&shy;tiques', icon: 'toolIndicateurs' },
