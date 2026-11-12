@@ -1,12 +1,15 @@
-// Cadre de l'application : barre latérale (lieux), barre du haut (connexion),
-// cartes des outils, filtres Localisation / Période, navigation et montage des outils.
+// Cadre de l'application : barre du haut (sections, profil, déconnexion), bandeau de
+// gauche (stations, uniquement dans l'onglet Données), cartes des outils, filtres
+// Localisation / Période, navigation et montage des outils.
 import { icons } from './icons.js';
-import { auth, signIn, signOut } from './auth.js';
+import { auth, signOut } from './auth.js';
 import { places, searchPlaces, locateMe, placeLabel } from './places.js';
 import { period } from './period.js';
+import { profile } from './profile.js';
+import { stationStore, stationState } from './stations.js';
 import { storage, debounce, escapeHtml, formatDateShort, loadScript, loadCss, VENDOR, isISODate, todayISO } from './util.js';
 
-const APP_VERSION = '2026-11-10.4';
+const APP_VERSION = '2026-11-12.1';
 
 export const TOOLS = [
   { id: 'indicateurs', title: 'SAM Indicateurs agroclimatiques', card: 'Indicateurs <br>agro&shy;clima&shy;tiques', icon: 'toolIndicateurs' },
@@ -19,9 +22,10 @@ export const TOOLS = [
 const HIDDEN_TOOLS = [
   { id: 'migration', title: 'Migration des données Piégeage', hidden: true, adminOnly: true }
 ];
-// Rubriques hors « Outils SAM » (barre du haut) : pas de cartes d'outils.
+// Rubriques hors « Outils SAM » : pas de cartes d'outils.
 const SECTIONS = [
-  { id: 'donnees', title: 'Données des stations SAM', section: true, admin: true }
+  { id: 'donnees', title: 'Données des stations SAM', section: true, sidebar: 'stations' },
+  { id: 'profil', title: 'Mon profil', section: true }
 ];
 const DEFAULT_TOOL = 'indicateurs';
 
@@ -29,6 +33,7 @@ const $ = id => document.getElementById(id);
 let currentMount = null;
 let mountToken = 0;
 let deferredInstall = null;
+let started = false;
 
 // ---------------------------------------------------------------------------
 // Icônes
@@ -64,59 +69,109 @@ function setModePill(text = '', kind = '') {
 }
 
 // ---------------------------------------------------------------------------
-// Barre latérale : lieux
+// Bandeau de gauche : stations du réseau (onglet Données)
 // ---------------------------------------------------------------------------
-function renderPlaces() {
-  const list = $('sam-places');
-  const current = places.current;
-  list.innerHTML = places.saved.map(place => {
-    const isCurrent = current && place.id === current.id;
-    const isFavorite = place.id === places.favoriteId;
-    return `<li class="sam-place${isCurrent ? ' is-current' : ''}" data-place-id="${escapeHtml(place.id)}">
-      <button class="sam-place-select" type="button" data-action="select" title="${escapeHtml(placeLabel(place, { long: true }))}">${escapeHtml(place.name)}</button>
-      ${places.saved.length > 1 && !isFavorite ? `<button class="sam-place-remove" type="button" data-action="remove" aria-label="Retirer ${escapeHtml(place.name)}">${icons.close}</button>` : ''}
-      <button class="sam-place-star" type="button" data-action="favorite" aria-pressed="${isFavorite}" aria-label="${isFavorite ? 'Lieu favori' : `Définir ${escapeHtml(place.name)} comme lieu favori`}" title="${isFavorite ? 'Lieu favori (ouvert au démarrage)' : 'Définir comme lieu favori'}">${isFavorite ? icons.starFilled : icons.star}</button>
-    </li>`;
-  }).join('');
-  $('sam-location-value').textContent = current ? placeLabel(current) : '—';
+const sideState = { showOthers: null };
+
+function stationItem(station) {
+  const state = stationState(station);
+  const isFavorite = profile.favorites().includes(station.id);
+  const isCurrent = station.id === stationStore.selectedId;
+  return `<li class="sam-station${isCurrent ? ' is-current' : ''}" data-station-id="${escapeHtml(station.id)}">
+    <button class="sam-station-select" type="button" data-action="select" title="${escapeHtml(`${station.nom} — ${state.label}`)}"${isCurrent ? ' aria-current="true"' : ''}>
+      <i class="sam-dot is-${state.key}" aria-hidden="true"></i><span>${escapeHtml(station.nom)}</span>
+    </button>
+    <button class="sam-place-star" type="button" data-action="favorite" aria-pressed="${isFavorite}" aria-label="${isFavorite ? `Retirer ${escapeHtml(station.nom)} des favoris` : `Ajouter ${escapeHtml(station.nom)} aux favoris`}" title="${isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}">${isFavorite ? icons.starFilled : icons.star}</button>
+  </li>`;
 }
 
-function handlePlaceListClick(event) {
+function renderStationSidebar() {
+  const status = $('sam-stations-status');
+  if (!stationStore.loaded) {
+    status.textContent = 'Chargement…';
+    status.classList.remove('hidden');
+    return;
+  }
+  if (stationStore.error) {
+    const missing = /relation|does not exist|schema cache/i.test(stationStore.error.message || '');
+    status.textContent = missing ? 'Les stations ne sont pas encore créées dans Supabase.' : 'Stations indisponibles pour le moment.';
+    status.classList.remove('hidden');
+    ['sam-stations-fav', 'sam-stations-others', 'sam-stations-pending'].forEach(id => { $(id).innerHTML = ''; });
+    $('sam-stations-toggle').classList.add('hidden');
+    $('sam-stations-hint').classList.add('hidden');
+    return;
+  }
+  const { favorites, installed, pending } = stationStore.groups();
+  const total = favorites.length + installed.length + pending.length;
+  status.textContent = total ? '' : 'Aucune station visible pour le moment.';
+  status.classList.toggle('hidden', Boolean(total));
+
+  // Sans favori, toutes les stations sont dépliées ; avec des favoris, les autres sont repliées.
+  const others = installed.length + pending.length;
+  const open = sideState.showOthers ?? !favorites.length;
+  $('sam-stations-fav').innerHTML = favorites.map(stationItem).join('');
+  $('sam-stations-others').innerHTML = installed.map(stationItem).join('');
+  $('sam-stations-pending').innerHTML = pending.map(stationItem).join('');
+  $('sam-stations-pending-title').classList.toggle('hidden', !pending.length);
+  $('sam-stations-hint').classList.toggle('hidden', favorites.length > 0 || !total);
+  const toggle = $('sam-stations-toggle');
+  toggle.classList.toggle('hidden', !favorites.length || !others);
+  toggle.setAttribute('aria-expanded', String(open));
+  toggle.innerHTML = open
+    ? `<span>Masquer les autres stations</span>${icons.chevronDown}`
+    : `<span>Voir les autres stations (${others})</span>${icons.chevronDown}`;
+  $('sam-stations-more').hidden = !open || !others;
+}
+
+function handleStationListClick(event) {
   const button = event.target.closest('button[data-action]');
-  const item = event.target.closest('[data-place-id]');
+  const item = event.target.closest('[data-station-id]');
   if (!button || !item) return;
-  const place = places.saved.find(p => p.id === item.dataset.placeId);
-  if (!place) return;
+  const id = item.dataset.stationId;
   if (button.dataset.action === 'select') {
-    places.select(place);
+    stationStore.select(id);
     closeDrawer();
-    closePopovers();
   } else if (button.dataset.action === 'favorite') {
-    places.setFavorite(place.id);
-    toast(`${place.name} sera ouvert par défaut.`);
-  } else if (button.dataset.action === 'remove') {
-    places.remove(place.id);
+    const station = stationStore.list.find(s => s.id === id);
+    const wasFavorite = profile.favorites().includes(id);
+    profile.toggleFavorite(id).then(({ error }) => {
+      if (error && profile.remote === false) toast('Favori gardé sur cet appareil (profil pas encore créé dans Supabase).', 4500);
+    });
+    if (!wasFavorite && station) toast(`${station.nom} ajoutée à vos favoris.`);
   }
 }
 
-function renderSearchResults(container, results, { dark = false } = {}) {
+async function enterStationSidebar() {
+  renderStationSidebar();
+  await Promise.all([profile.load(), stationStore.load()]);
+  renderStationSidebar();
+}
+
+// ---------------------------------------------------------------------------
+// Lieux (choix de la localisation des outils)
+// ---------------------------------------------------------------------------
+function renderLocationValue() {
+  $('sam-location-value').textContent = places.current ? placeLabel(places.current) : '—';
+}
+
+function renderSearchResults(container, results) {
   if (!results) {
     container.innerHTML = '';
     return;
   }
   if (!results.length) {
-    container.innerHTML = `<p class="${dark ? 'sam-side-empty' : 'sam-pop-message'}">Aucune commune trouvée en France.</p>`;
+    container.innerHTML = '<p class="sam-pop-message">Aucune commune trouvée en France.</p>';
     return;
   }
   container.innerHTML = results.map((place, index) => `
-    <button type="button" class="${dark ? 'sam-side-result' : 'sam-pop-option'}" data-result-index="${index}">
-      ${dark ? '' : '<span class="sam-pop-main">'}<strong>${escapeHtml(place.name)}</strong>
-      <${dark ? 'span' : 'small'}>${escapeHtml([place.postcode, place.admin2, place.admin1].filter(Boolean).join(' · '))}</${dark ? 'span' : 'small'}>${dark ? '' : '</span>'}
+    <button type="button" class="sam-pop-option" data-result-index="${index}">
+      <span class="sam-pop-main"><strong>${escapeHtml(place.name)}</strong>
+      <small>${escapeHtml([place.postcode, place.admin2, place.admin1].filter(Boolean).join(' · '))}</small></span>
     </button>`).join('');
   container._results = results;
 }
 
-function wirePlaceSearch(input, container, { dark = false, onSelect } = {}) {
+function wirePlaceSearch(input, container, { onSelect } = {}) {
   let lastQuery = '';
   const run = debounce(async () => {
     const query = input.value.trim();
@@ -128,9 +183,9 @@ function wirePlaceSearch(input, container, { dark = false, onSelect } = {}) {
     }
     try {
       const results = await searchPlaces(query);
-      if (input.value.trim() === query) renderSearchResults(container, results, { dark });
+      if (input.value.trim() === query) renderSearchResults(container, results);
     } catch {
-      container.innerHTML = `<p class="${dark ? 'sam-side-empty' : 'sam-pop-message'}">Recherche indisponible (connexion ?).</p>`;
+      container.innerHTML = '<p class="sam-pop-message">Recherche indisponible (connexion ?).</p>';
     }
   }, 320);
   input.addEventListener('input', run);
@@ -157,7 +212,6 @@ async function useMyPosition(button) {
     const place = await locateMe();
     places.select(place);
     toast(`Lieu : ${place.name}`);
-    closeDrawer();
     closePopovers();
   } catch (error) {
     toast(error.message);
@@ -169,6 +223,9 @@ async function useMyPosition(button) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Bandeau : repli (ordinateur) et tiroir (téléphone)
+// ---------------------------------------------------------------------------
 function setCollapsed(collapsed) {
   $('sam-app').classList.toggle('is-collapsed', collapsed);
   storage.set('sidebarCollapsed', collapsed);
@@ -189,63 +246,23 @@ function closeDrawer() {
 }
 
 // ---------------------------------------------------------------------------
-// Connexion
+// Compte connecté
 // ---------------------------------------------------------------------------
 function renderAuth() {
-  const logged = Boolean(auth.user);
-  $('sam-perso').classList.toggle('hidden', !logged);
-  $('sam-perso-email').textContent = logged ? auth.user.email || '' : '';
-  $('sam-perso').title = logged ? (auth.isAdmin ? 'Compte administrateur' : 'Compte connecté (sans droits d’administration)') : '';
-  $('sam-auth-label').textContent = logged ? 'Quitter' : 'Connexion';
-  $('sam-auth-icon').innerHTML = logged ? icons.power : icons.login;
-  $('sam-auth-button').title = logged ? 'Se déconnecter' : 'Connexion administrateur';
+  // L'adresse mail affichée en haut à droite ouvre la page « Mon profil ».
+  const p = profile.data;
+  const name = [p?.prenom, p?.nom].filter(Boolean).join(' ').trim();
+  $('sam-perso-email').textContent = auth.user?.email || 'Mon profil';
+  $('sam-perso').title = `${name ? `${name} · ` : ''}${auth.isAdmin ? 'compte administrateur' : 'compte en lecture seule'} — Mon profil`;
   updateToolModePill();
 }
 
-function openLogin() {
-  const dialog = $('sam-login');
-  $('sam-login-message').textContent = '';
-  $('sam-login-message').classList.remove('is-error');
-  if (!auth.configured) {
-    $('sam-login-message').textContent = 'Connexion indisponible : configuration Supabase absente.';
-    $('sam-login-message').classList.add('is-error');
-  }
-  dialog.showModal();
-  setTimeout(() => $('sam-login-email').focus(), 30);
-}
-
-async function submitLogin(event) {
-  event.preventDefault();
-  const email = $('sam-login-email').value.trim();
-  const password = $('sam-login-password').value;
-  const message = $('sam-login-message');
-  const submit = $('sam-login-submit');
-  if (!email || !password) return;
-  submit.disabled = true;
-  message.classList.remove('is-error');
-  message.textContent = 'Connexion…';
+async function handleLogout() {
   try {
-    await signIn(email, password);
-    $('sam-login-password').value = '';
-    $('sam-login').close();
-    toast(auth.isAdmin ? 'Connecté — mode administrateur activé.' : 'Connecté. Ce compte n’a pas les droits d’administration.');
-  } catch (error) {
-    message.textContent = /invalid login|invalid credentials/i.test(error.message || '')
-      ? 'Adresse mail ou mot de passe incorrect.'
-      : `Connexion impossible : ${error.message}`;
-    message.classList.add('is-error');
+    await signOut();
   } finally {
-    submit.disabled = false;
+    window.location.reload();
   }
-}
-
-async function handleAuthButton() {
-  if (!auth.user) {
-    openLogin();
-    return;
-  }
-  await signOut();
-  toast('Déconnecté. Retour en consultation.');
 }
 
 // ---------------------------------------------------------------------------
@@ -269,21 +286,29 @@ function updateToolModePill() {
   if (!activeTool) return setModePill('');
   if (activeTool.admin || activeTool.adminOnly) {
     if (auth.isAdmin) setModePill('Mode administrateur', 'admin');
-    else setModePill(auth.user ? 'Lecture seule (compte sans droits)' : 'Consultation', 'readonly');
+    else setModePill('Lecture seule', 'readonly');
   }
 }
 
 // ---------------------------------------------------------------------------
 // Filtres : localisation et période
 // ---------------------------------------------------------------------------
-const filterState = { location: true, period: true, locationLabel: 'Localisation favorite', hint: '' };
+const filterState = { location: true, period: true, locationLabel: 'Localisation', hint: '', mountIn: null };
+
+function placeFilters(target) {
+  const filters = $('sam-filters');
+  const host = target || $('sam-filters-home');
+  if (filters.parentElement !== host) host.appendChild(filters);
+  filters.classList.toggle('is-embedded', Boolean(target));
+}
 
 function applyFilterVisibility() {
   const showLocation = filterState.location;
   const showPeriod = filterState.period && Boolean(period.config);
   $('sam-filter-location').classList.toggle('hidden', !showLocation);
   $('sam-filter-period').classList.toggle('hidden', !showPeriod);
-  $('sam-filters').classList.toggle('hidden', !showLocation && !showPeriod);
+  const actions = $('sam-filter-actions');
+  $('sam-filters').classList.toggle('hidden', !showLocation && !showPeriod && !actions.children.length);
   $('sam-location-label').textContent = filterState.locationLabel;
   $('sam-filter-hint').textContent = filterState.hint || '';
 }
@@ -292,9 +317,11 @@ function setFilterOptions(options = {}) {
   Object.assign(filterState, {
     location: options.location ?? true,
     period: options.period ?? true,
-    locationLabel: options.locationLabel || 'Localisation favorite',
-    hint: options.hint || ''
+    locationLabel: options.locationLabel || 'Localisation',
+    hint: options.hint || '',
+    mountIn: options.mountIn || null
   });
+  placeFilters(filterState.mountIn);
   applyFilterVisibility();
 }
 
@@ -330,12 +357,17 @@ function renderLocationPopover(pop) {
     <div class="sam-pop-section">
       <p class="sam-pop-title">Mes lieux</p>
       <div class="sam-pop-list">
-        ${places.saved.map(place => `
-          <button type="button" class="sam-pop-option${current?.id === place.id ? ' is-selected' : ''}" data-place-id="${escapeHtml(place.id)}">
-            <span class="sam-radio-dot"></span>
-            <span class="sam-pop-main">${escapeHtml(place.name)}<small>${escapeHtml([place.admin2, place.admin1].filter(Boolean).join(' · ') || 'France')}</small></span>
-            ${place.id === places.favoriteId ? '<span class="sam-pop-dates">Favori</span>' : ''}
-          </button>`).join('')}
+        ${places.saved.map(place => {
+          const isFavorite = place.id === places.favoriteId;
+          return `<div class="sam-pop-place${current?.id === place.id ? ' is-selected' : ''}" data-place-id="${escapeHtml(place.id)}">
+            <button type="button" class="sam-pop-option${current?.id === place.id ? ' is-selected' : ''}" data-action="select">
+              <span class="sam-radio-dot"></span>
+              <span class="sam-pop-main">${escapeHtml(place.name)}<small>${escapeHtml([place.admin2, place.admin1].filter(Boolean).join(' · ') || 'France')}</small></span>
+            </button>
+            <button type="button" class="sam-pop-icon${isFavorite ? ' is-on' : ''}" data-action="favorite" aria-pressed="${isFavorite}" title="${isFavorite ? 'Lieu ouvert par défaut' : 'Ouvrir ce lieu par défaut'}" aria-label="${isFavorite ? `${escapeHtml(place.name)} : lieu par défaut` : `Ouvrir ${escapeHtml(place.name)} par défaut`}">${isFavorite ? icons.starFilled : icons.star}</button>
+            ${places.saved.length > 1 && !isFavorite ? `<button type="button" class="sam-pop-icon" data-action="remove" title="Retirer de mes lieux" aria-label="Retirer ${escapeHtml(place.name)}">${icons.close}</button>` : '<span class="sam-pop-icon-spacer"></span>'}
+          </div>`;
+        }).join('')}
       </div>
     </div>
     <div class="sam-pop-section">
@@ -343,10 +375,23 @@ function renderLocationPopover(pop) {
     </div>`;
   const input = pop.querySelector('#sam-pop-search-input');
   wirePlaceSearch(input, pop.querySelector('#sam-pop-search-results'), { onSelect: () => closePopovers() });
-  pop.querySelectorAll('[data-place-id]').forEach(btn => btn.addEventListener('click', () => {
-    const place = places.saved.find(p => p.id === btn.dataset.placeId);
-    if (place) places.select(place);
-    closePopovers();
+  pop.querySelectorAll('[data-place-id] [data-action]').forEach(btn => btn.addEventListener('click', () => {
+    const id = btn.closest('[data-place-id]').dataset.placeId;
+    const place = places.saved.find(p => p.id === id);
+    if (!place) return;
+    if (btn.dataset.action === 'select') {
+      places.select(place);
+      closePopovers();
+    } else if (btn.dataset.action === 'favorite') {
+      places.setFavorite(id);
+      toast(`${place.name} sera ouvert par défaut.`);
+      renderLocationPopover(pop);
+      hydrateIcons(pop);
+    } else if (btn.dataset.action === 'remove') {
+      places.remove(id);
+      renderLocationPopover(pop);
+      hydrateIcons(pop);
+    }
   }));
   pop.querySelector('#sam-pop-gps').addEventListener('click', event => useMyPosition(event.currentTarget));
   if (!window.matchMedia('(max-width: 760px)').matches) setTimeout(() => input.focus(), 20);
@@ -454,10 +499,21 @@ function createContext(tool, root) {
       refresh: () => period.refresh(),
       onChange(fn) { track(period.onChange((value, info) => { if (!disposed && info?.reason !== 'configure') fn(value, info); })); }
     },
+    /** Options des filtres ; mountIn = élément de l'outil qui accueille les filtres. */
     filters: options => setFilterOptions(options),
     /** Emplacement à droite de la période pour les boutons propres à l'outil. */
     filterActions: () => $('sam-filter-actions'),
-    ui: { toast, setMode: setModePill, openLogin },
+    stations: {
+      store: stationStore,
+      onChange(fn) { track(stationStore.onChange(event => { if (!disposed) fn(event); })); }
+    },
+    profile: {
+      get data() { return profile.data; },
+      load: force => profile.load(force),
+      save: patch => profile.save(patch),
+      onChange(fn) { track(profile.onChange(data => { if (!disposed) fn(data); })); }
+    },
+    ui: { toast, setMode: setModePill, openLogin: () => toast('Vous êtes déjà connecté.'), logout: handleLogout },
     loadScript,
     vendor: {
       xlsx: () => loadScript(VENDOR.xlsx),
@@ -489,6 +545,14 @@ function routeFromHash() {
   return TOOLS.find(t => t.id === id) || SECTIONS.find(t => t.id === id) || HIDDEN_TOOLS.find(t => t.id === id) || null;
 }
 
+function applyLayout(tool) {
+  const withSidebar = tool.sidebar === 'stations';
+  $('sam-app').classList.toggle('has-sidebar', withSidebar);
+  $('sam-top-brand').href = `#/${storage.get('lastTool', DEFAULT_TOOL)}`;
+  if (!withSidebar) closeDrawer();
+  else enterStationSidebar().catch(error => console.warn(error));
+}
+
 async function mountTool(tool) {
   const token = ++mountToken;
   const root = $('sam-tool');
@@ -500,6 +564,9 @@ async function mountTool(tool) {
     currentMount.dispose();
     currentMount = null;
   }
+  // Les filtres ont pu être placés dans l'outil précédent : on les remet à leur place
+  // avant de vider la page.
+  placeFilters(null);
   root.innerHTML = '';
   root.className = `tool-root tool-${tool.id}`;
   destroyDetachedCharts();
@@ -509,12 +576,13 @@ async function mountTool(tool) {
   $('sam-title').textContent = tool.title;
   $('sam-tools').classList.toggle('hidden', Boolean(tool.section));
   if (!tool.section) renderToolCards(tool.id);
+  applyLayout(tool);
   updateTopNav(tool);
   setModePill('');
   updateToolModePill();
   period.configure(tool.id, null);
   $('sam-filter-actions').innerHTML = '';
-  setFilterOptions({});
+  setFilterOptions(tool.section ? { location: false, period: false } : {});
   $('sam-tool-loading').classList.remove('hidden');
 
   try {
@@ -529,6 +597,7 @@ async function mountTool(tool) {
     const instance = await module.mount(root, handle.ctx);
     if (currentMount && currentMount.tool === tool) currentMount.instance = instance || null;
     hydrateIcons(root);
+    hydrateIcons($('sam-filters'));
   } catch (error) {
     console.error(error);
     if (token !== mountToken) return;
@@ -539,13 +608,17 @@ async function mountTool(tool) {
 
 function updateTopNav(tool) {
   const inData = tool?.id === 'donnees';
+  const inTools = !tool?.section;
   const outils = $('sam-nav-outils');
   const donnees = $('sam-nav-donnees');
   outils.href = `#/${storage.get('lastTool', DEFAULT_TOOL)}`;
-  outils.classList.toggle('is-active', !inData);
+  outils.classList.toggle('is-active', inTools);
   donnees.classList.toggle('is-active', inData);
-  if (inData) { donnees.setAttribute('aria-current', 'page'); outils.removeAttribute('aria-current'); }
-  else { outils.setAttribute('aria-current', 'page'); donnees.removeAttribute('aria-current'); }
+  $('sam-perso').classList.toggle('is-active', tool?.id === 'profil');
+  [[outils, inTools], [donnees, inData]].forEach(([link, on]) => {
+    if (on) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
+  });
 }
 
 function handleRoute() {
@@ -616,8 +689,7 @@ function initPwa() {
   const platform = detectPlatform();
   const standaloneQuery = window.matchMedia('(display-mode: standalone)');
   const isStandalone = () => standaloneQuery.matches || navigator.standalone === true;
-  const footButton = $('sam-install');
-  const sideButton = $('sam-side-install');
+  const topButton = $('sam-install');
   const banner = $('sam-install-banner');
   const dialog = $('sam-install-dialog');
   const DISMISS_KEY = 'installBannerDismissedAt';
@@ -627,8 +699,7 @@ function initPwa() {
     const dismissedAt = Number(storage.get(DISMISS_KEY, 0)) || 0;
     const recentlyDismissed = Date.now() - dismissedAt < 30 * 24 * 3600 * 1000;
     const canOffer = !installed && (platform.mobile || Boolean(deferredInstall));
-    sideButton.classList.toggle('hidden', !canOffer);
-    footButton.classList.toggle('hidden', installed || !(deferredInstall || platform.id === 'ios'));
+    topButton.classList.toggle('hidden', !canOffer);
     banner.classList.toggle('hidden', !canOffer || !platform.mobile || recentlyDismissed);
   }
 
@@ -638,7 +709,7 @@ function initPwa() {
       deferredInstall = null;
       prompt.prompt();
       const choice = await prompt.userChoice.catch(() => null);
-      if (choice?.outcome !== 'accepted') toast('Installation annulée. Vous pourrez la relancer depuis le menu.');
+      if (choice?.outcome !== 'accepted') toast('Installation annulée. Vous pourrez la relancer avec le bouton « Installer ».');
       refresh();
       return;
     }
@@ -659,7 +730,7 @@ function initPwa() {
   });
   standaloneQuery.addEventListener?.('change', refresh);
 
-  [footButton, sideButton, $('sam-install-banner-go')].forEach(button => button.addEventListener('click', install));
+  [topButton, $('sam-install-banner-go')].forEach(button => button.addEventListener('click', install));
   $('sam-install-banner-close').addEventListener('click', () => {
     storage.set(DISMISS_KEY, Date.now());
     refresh();
@@ -671,33 +742,46 @@ function initPwa() {
 }
 
 // ---------------------------------------------------------------------------
-// Démarrage
+// Démarrage (après connexion)
 // ---------------------------------------------------------------------------
 export function startShell() {
+  if (started) return;
+  started = true;
+  $('sam-app').hidden = false;
   hydrateIcons(document);
   $('sam-version').textContent = `SAM v${window.SAM_CONFIG?.version || '2.0.0'}`;
 
-  // Barre latérale
-  renderPlaces();
-  $('sam-places').addEventListener('click', handlePlaceListClick);
-  $('sam-side-search').addEventListener('submit', event => event.preventDefault());
-  wirePlaceSearch($('sam-side-search-input'), $('sam-side-results'), { dark: true, onSelect: () => closeDrawer() });
-  $('sam-side-gps').addEventListener('click', event => useMyPosition(event.currentTarget));
+  // Bandeau des stations (onglet Données)
+  ['sam-stations-fav', 'sam-stations-others', 'sam-stations-pending'].forEach(id => $(id).addEventListener('click', handleStationListClick));
+  $('sam-stations-toggle').addEventListener('click', () => {
+    const { favorites } = stationStore.groups();
+    const open = sideState.showOthers ?? !favorites.length;
+    sideState.showOthers = !open;
+    renderStationSidebar();
+  });
+  stationStore.onChange(() => renderStationSidebar());
+  profile.onChange(() => {
+    renderAuth();
+    if ($('sam-app').classList.contains('has-sidebar')) {
+      stationStore.ensureSelection();
+      renderStationSidebar();
+    }
+  });
   $('sam-collapse').addEventListener('click', () => setCollapsed(true));
   $('sam-expand').addEventListener('click', () => setCollapsed(false));
   if (storage.get('sidebarCollapsed', false)) $('sam-app').classList.add('is-collapsed');
   $('sam-burger').addEventListener('click', () => ($('sam-app').classList.contains('drawer-open') ? closeDrawer() : openDrawer()));
   $('sam-drawer-backdrop').addEventListener('click', closeDrawer);
 
-  places.onChange(() => renderPlaces());
+  // Lieux des outils
+  renderLocationValue();
+  places.onChange(() => renderLocationValue());
 
-  // Connexion
+  // Compte
   renderAuth();
   auth.onChange(() => renderAuth());
-  $('sam-auth-button').addEventListener('click', handleAuthButton);
-  $('sam-login-form').addEventListener('submit', submitLogin);
-  $('sam-login-close').addEventListener('click', () => $('sam-login').close());
-  $('sam-login').addEventListener('click', event => { if (event.target === $('sam-login')) $('sam-login').close(); });
+  profile.load().then(renderAuth).catch(() => {});
+  $('sam-logout').addEventListener('click', handleLogout);
 
   // Filtres
   $('sam-location-button').addEventListener('click', event => {

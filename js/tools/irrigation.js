@@ -1,5 +1,6 @@
 // SAM Programmation irrigation — calculatrice de programmation sur une période.
-// Reprise de l'appli « SAM Irrigation » : le lieu et la période viennent des filtres communs.
+// Reprise de l'appli « SAM Irrigation » : le lieu et la période se choisissent dans la carte
+// « Période de programmation ».
 import { presets } from '../core/period.js';
 import { todayISO, addDaysISO, diffDaysISO, storage } from '../core/util.js';
 
@@ -53,6 +54,7 @@ const TEMPLATE = `
   <section class="card">
     <p class="eyebrow">Période de programmation</p>
     <h2>Dates et fréquence d’irrigation</h2>
+    <div id="irrFilters" class="irr-filters"></div>
     <div id="periodPreview" class="period-preview"></div>
     <div class="form-grid">
       <label>Dernier arrosage<input id="lastIrrigation" type="date"></label>
@@ -111,7 +113,7 @@ const TEMPLATE = `
 
   </section>
   <p id="updatedAt" class="muted center"></p>
-  <p class="attribution">Données météo : Open-Meteo. Prototype SudExpé.</p>
+  <p class="attribution">Données météo : Open-Meteo.</p>
 </div>`;
 
 const KC_TABLE = {
@@ -179,7 +181,7 @@ export async function mount(root, ctx) {
   let weatherRows = [];
   let weatherMeta = null;
 
-  ctx.filters({ location: true, period: true, hint: 'La période choisie est la période de programmation (jusqu’à 16 jours).' });
+  ctx.filters({ location: true, period: true, hint: 'La période choisie est la période de programmation (jusqu’à 16 jours).', mountIn: q('#irrFilters') });
   ctx.period.configure({
     presets: [
       presets.nextDays(7),

@@ -4,6 +4,10 @@
 import { todayISO, addDaysISO } from '../core/util.js';
 
 const TEMPLATE = `<div class="tool-main">
+    <section class="sam-team-note" aria-label="Suivi phénologique SudExpé">
+      <p class="sam-team-kicker">Suivi phénologique SudExpé</p>
+      <p>Résultats consultables par tous les comptes SAM. Les parcelles, les variétés et les notations de stades sont relevées et saisies par l’équipe SudExpé.</p>
+    </section>
     <section class="card active-card" aria-labelledby="active-title">
       <div class="section-heading">
         <div>

@@ -73,12 +73,18 @@ img { max-width: 100%; }
    -------------------------------------------------------------------------- */
 .sam-app {
   display: grid;
-  grid-template-columns: var(--sam-sidebar-w) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   min-height: 100dvh;
+  background: var(--sam-bg);
+}
+.sam-app > .sam-sidebar { display: none; }
+/* Bandeau rouge : uniquement dans l'onglet Données (stations). */
+.sam-app.has-sidebar {
+  grid-template-columns: var(--sam-sidebar-w) minmax(0, 1fr);
   background: linear-gradient(to right, var(--sam-red-900) var(--sam-sidebar-w), var(--sam-bg) var(--sam-sidebar-w));
 }
-.sam-app.is-collapsed { background: var(--sam-bg); }
-.sam-app.is-collapsed { grid-template-columns: 0 minmax(0, 1fr); }
+.sam-app.has-sidebar > .sam-sidebar { display: block; }
+.sam-app.has-sidebar.is-collapsed { grid-template-columns: 0 minmax(0, 1fr); background: var(--sam-bg); }
 .sam-main-col { min-width: 0; display: flex; flex-direction: column; }
 
 /* --------------------------------------------------------------------------
@@ -108,53 +114,11 @@ img { max-width: 100%; }
 .sam-brand { display: block; width: 214px; margin: 2px 0 20px 6px; }
 .sam-brand img { display: block; width: 100%; height: auto; }
 
-.sam-search {
-  position: relative;
-  display: flex;
-  align-items: center;
-  height: 44px;
-  border-radius: 9px;
-  background: #fff;
-  color: var(--sam-ink);
-  box-shadow: 0 2px 6px rgba(0,0,0,.12);
-}
-.sam-search-icon { position: absolute; left: 14px; color: var(--sam-ink-2); }
-.sam-search input {
-  width: 100%;
-  height: 100%;
-  border: 0;
-  background: transparent;
-  padding: 0 14px 0 44px;
-  font-size: .95rem;
-  outline: none;
-  border-radius: 9px;
-}
-.sam-search input::placeholder { color: #8a9099; }
-.sam-search:focus-within { box-shadow: 0 0 0 3px rgba(255,255,255,.45); }
-
-.sam-side-results { margin-top: 8px; display: grid; gap: 4px; }
-.sam-side-results:empty { display: none; }
-.sam-side-result {
-  display: grid;
-  gap: 1px;
-  width: 100%;
-  padding: 8px 12px;
-  border: 0;
-  border-radius: 8px;
-  background: rgba(255,255,255,.12);
-  color: #fff;
-  text-align: left;
-}
-.sam-side-result:hover, .sam-side-result:focus-visible { background: rgba(255,255,255,.22); }
-.sam-side-result strong { font-size: .92rem; }
-.sam-side-result span { font-size: .78rem; opacity: .82; }
-.sam-side-results .sam-side-empty { margin: 0; padding: 4px 6px; font-size: .82rem; opacity: .85; }
-
 .sam-side-title {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 22px 4px 8px;
+  margin: 4px 4px 8px;
   padding-bottom: 12px;
   border-bottom: 1px solid rgba(255,255,255,.18);
   font-size: .95rem;
@@ -162,67 +126,86 @@ img { max-width: 100%; }
   letter-spacing: .02em;
   text-transform: uppercase;
 }
+.sam-side-empty { margin: 6px 6px 0; font-size: .86rem; opacity: .85; }
+.sam-side-hint { margin: 10px 6px 0; font-size: .8rem; line-height: 1.45; opacity: .8; }
+.sam-side-subtitle { margin: 14px 8px 4px; font-size: .74rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; opacity: .7; }
 
-.sam-places { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
-.sam-place {
+.sam-stations { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }
+.sam-stations:empty { display: none; }
+.sam-station {
   position: relative;
+  min-width: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   border-radius: 9px;
 }
-.sam-place.is-current { background: var(--sam-red-700); }
-.sam-place:not(.is-current):hover { background: rgba(255,255,255,.08); }
-.sam-place-select {
+.sam-station.is-current { background: var(--sam-red-700); box-shadow: inset 3px 0 0 #fff; }
+.sam-station:not(.is-current):hover { background: rgba(255,255,255,.08); }
+.sam-station-select {
   flex: 1;
   min-width: 0;
-  padding: 12px 6px 12px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 4px 11px 12px;
   border: 0;
   background: transparent;
   color: #fff;
-  font-size: .97rem;
+  font-size: .95rem;
   font-weight: 500;
   text-align: left;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
-.sam-place-star, .sam-place-remove {
+.sam-station-select span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sam-station.is-current .sam-station-select { font-weight: 700; }
+.sam-stations.is-pending .sam-station-select { opacity: .72; }
+.sam-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: #b8bcc4; box-shadow: 0 0 0 2px rgba(255,255,255,.18); }
+.sam-dot.is-ok { background: #6fd36a; }
+.sam-dot.is-late { background: #ffb547; }
+.sam-dot.is-silent, .sam-dot.is-off, .sam-dot.is-never { background: #c9ccd2; }
+.sam-dot.is-pending { background: transparent; border: 1.5px dashed rgba(255,255,255,.75); box-shadow: none; }
+
+.sam-place-star {
   flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
+  margin-right: 4px;
   border: 0;
   border-radius: 8px;
   background: transparent;
   color: #fff;
-  opacity: .92;
+  opacity: .9;
 }
-.sam-place-star:hover, .sam-place-remove:hover { background: rgba(255,255,255,.14); opacity: 1; }
-.sam-place-remove { width: 26px; opacity: 0; }
-.sam-place:hover .sam-place-remove, .sam-place-remove:focus-visible { opacity: .8; }
-.sam-place-star { margin-right: 4px; }
+.sam-place-star:hover { background: rgba(255,255,255,.14); opacity: 1; }
+.sam-place-star .sam-icon { width: 20px; height: 20px; }
+.sam-place-star[aria-pressed="false"] { opacity: .55; }
+.sam-station:hover .sam-place-star[aria-pressed="false"], .sam-place-star:focus-visible { opacity: .95; }
 
-.sam-side-action {
-  display: inline-flex;
+.sam-side-more {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  margin: 10px 0 0;
-  padding: 9px 12px;
+  width: 100%;
+  margin: 12px 0 6px;
+  padding: 10px 12px;
   border: 1px solid rgba(255,255,255,.3);
   border-radius: 9px;
   background: transparent;
   color: #fff;
   font-size: .88rem;
   font-weight: 600;
+  text-align: left;
 }
-.sam-side-action:hover { background: rgba(255,255,255,.1); }
-a.sam-side-action { text-decoration: none; }
-.sam-side-stations { display: flex; width: max-content; }
+.sam-side-more:hover { background: rgba(255,255,255,.1); }
+.sam-side-more .sam-icon { transition: transform .15s; }
+.sam-side-more[aria-expanded="true"] .sam-icon { transform: rotate(180deg); }
+.sam-stations-more { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }
+
 a.sam-top-item { text-decoration: none; }
-.sam-side-note { margin: 14px 4px 0; font-size: .78rem; line-height: 1.45; opacity: .78; }
 
 .sam-side-foot {
   display: flex;
@@ -234,7 +217,7 @@ a.sam-top-item { text-decoration: none; }
 .sam-side-foot-icon { opacity: .95; }
 .sam-side-foot-text { display: grid; flex: 1; font-size: .86rem; line-height: 1.35; }
 .sam-side-foot-text span:last-child { opacity: .85; font-size: .8rem; }
-.sam-collapse, .sam-install {
+.sam-collapse {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -246,8 +229,6 @@ a.sam-top-item { text-decoration: none; }
   color: #fff;
   box-shadow: 0 4px 12px rgba(0,0,0,.18);
 }
-.sam-install { width: 40px; height: 40px; background: rgba(255,255,255,.14); box-shadow: none; }
-.sam-side-install { margin-top: 2px; }
 
 /* Bandeau d'installation (téléphones et tablettes) */
 .sam-install-banner {
@@ -274,7 +255,7 @@ a.sam-top-item { text-decoration: none; }
 .sam-install-dialog p { margin: 0; color: var(--sam-muted); font-size: .88rem; }
 .sam-install-dialog .sam-install-platform { margin: 4px 0 0; color: var(--sam-ink); font-size: .8rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .sam-install-dialog kbd { padding: 1px 6px; border: 1px solid var(--sam-line); border-radius: 6px; background: var(--sam-bg-soft); font: inherit; font-weight: 600; }
-.sam-collapse:hover, .sam-install:hover { filter: brightness(1.08); }
+.sam-collapse:hover { filter: brightness(1.08); }
 
 .sam-drawer-backdrop {
   position: fixed;
@@ -312,12 +293,19 @@ a.sam-top-item { text-decoration: none; }
   color: #fff;
 }
 .sam-burger:hover, .sam-expand:hover { background: rgba(255,255,255,.12); }
-.sam-app.is-collapsed .sam-expand { display: inline-flex; }
+.sam-app.has-sidebar.is-collapsed .sam-expand { display: inline-flex; }
+
+/* Logo dans la barre du haut quand le bandeau n'est pas affiché */
+.sam-top-brand { display: none; align-items: center; align-self: center; flex: none; margin: 0 14px 0 6px; }
+.sam-top-brand img { display: block; width: auto; height: 44px; }
+.sam-app:not(.has-sidebar) .sam-top-brand,
+.sam-app.has-sidebar.is-collapsed .sam-top-brand { display: inline-flex; }
 
 .sam-topnav { display: flex; align-items: stretch; gap: 6px; }
 .sam-topnav-link {
   position: relative;
   display: inline-flex;
+  white-space: nowrap;
   align-items: center;
   padding: 0 18px;
   color: #fff;
@@ -356,7 +344,8 @@ a.sam-top-item { text-decoration: none; }
   white-space: nowrap;
 }
 .sam-perso .sam-top-label { text-transform: none; letter-spacing: 0; font-weight: 600; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
-button.sam-top-item:hover { background: rgba(255,255,255,.12); }
+button.sam-top-item:hover, a.sam-top-item:hover { background: rgba(255,255,255,.12); }
+.sam-perso.is-active { background: rgba(255,255,255,.16); }
 
 /* --------------------------------------------------------------------------
    Contenu
@@ -368,8 +357,9 @@ button.sam-top-item:hover { background: rgba(255,255,255,.12); }
   margin-inline: auto;
   padding: 26px 38px 56px;
 }
-/* Menu rouge replié : la page reste centrée et profite de la largeur libérée. */
-.sam-app.is-collapsed .sam-content { max-width: 1720px; }
+/* Sans bandeau (outils) ou bandeau replié : la page reste centrée et profite de la largeur. */
+.sam-app:not(.has-sidebar) .sam-content,
+.sam-app.has-sidebar.is-collapsed .sam-content { max-width: 1720px; }
 .sam-page-head { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 16px; margin-bottom: 20px; }
 .sam-page-title {
   margin: 0;
@@ -433,6 +423,14 @@ button.sam-top-item:hover { background: rgba(255,255,255,.12); }
   border-radius: var(--sam-radius);
   background: #fff;
   box-shadow: var(--sam-shadow-sm);
+}
+.sam-filters.is-embedded {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 .sam-filter { position: relative; display: grid; gap: 7px; }
 .sam-filter-label { padding-left: 2px; color: var(--sam-ink-2); font-size: .87rem; font-weight: 500; }
@@ -520,6 +518,24 @@ button.sam-top-item:hover { background: rgba(255,255,255,.12); }
 .sam-pop-option .sam-pop-main { flex: 1; min-width: 0; }
 .sam-pop-option .sam-pop-dates { color: var(--sam-muted); font-size: .8rem; font-weight: 500; white-space: nowrap; }
 .sam-pop-option.is-selected .sam-pop-dates { color: var(--sam-red-700); }
+.sam-pop-place { display: flex; align-items: center; gap: 2px; border-radius: 8px; }
+.sam-pop-place .sam-pop-option { flex: 1; min-width: 0; }
+.sam-pop-icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #9aa0a8;
+}
+.sam-pop-icon:hover { background: var(--sam-bg-soft); color: var(--sam-ink-2); }
+.sam-pop-icon.is-on { color: var(--sam-red-700); }
+.sam-pop-icon .sam-icon { width: 18px; height: 18px; }
+.sam-pop-icon-spacer { flex: none; width: 34px; }
 .sam-radio-dot { width: 16px; height: 16px; flex: none; border: 2px solid #c6cad1; border-radius: 50%; }
 .is-selected .sam-radio-dot { border: 5px solid var(--sam-red-700); }
 .sam-pop-dates-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -571,7 +587,7 @@ button.sam-top-item:hover { background: rgba(255,255,255,.12); }
 }
 .sam-icon-button:hover { background: var(--sam-bg-soft); }
 
-/* Fenêtre de connexion */
+/* Fenêtres */
 .sam-dialog {
   width: min(440px, calc(100vw - 24px));
   padding: 0;
@@ -581,7 +597,6 @@ button.sam-top-item:hover { background: rgba(255,255,255,.12); }
   color: var(--sam-ink);
 }
 .sam-dialog::backdrop { background: rgba(17, 24, 39, .45); }
-.sam-login-form { display: grid; gap: 14px; padding: 22px; }
 .sam-dialog-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .sam-dialog-head h2 { margin: 2px 0 0; font-size: 1.35rem; }
 .sam-kicker { margin: 0; color: var(--sam-red-700); font-size: .74rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
@@ -589,6 +604,60 @@ button.sam-top-item:hover { background: rgba(255,255,255,.12); }
 .sam-dialog-note { font-size: .8rem; }
 .sam-form-message { margin: 0; min-height: 1.2em; font-size: .88rem; color: var(--sam-muted); }
 .sam-form-message.is-error { color: var(--sam-red-700); }
+
+/* Écran de connexion */
+body.is-gated { background: var(--sam-red-900); }
+.sam-gate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  min-height: 100dvh;
+  padding: calc(24px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom));
+  background:
+    radial-gradient(circle at 18% 12%, rgba(255,255,255,.09) 0 22%, transparent 23%),
+    radial-gradient(circle at 88% 92%, rgba(255,255,255,.07) 0 18%, transparent 19%),
+    var(--sam-red-900);
+}
+.sam-gate[hidden] { display: none !important; }
+.sam-gate-card {
+  width: min(420px, 100%);
+  padding: 30px 30px 24px;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(40, 0, 6, .35);
+}
+.sam-gate-logo { display: block; width: 176px; height: auto; margin: 0 auto 18px; }
+.sam-gate-view h1 { margin: 0 0 6px; font-size: 1.45rem; letter-spacing: -.01em; text-align: center; }
+.sam-gate-text { margin: 0 0 18px; color: var(--sam-muted); font-size: .9rem; text-align: center; }
+.sam-gate-form { display: grid; gap: 14px; }
+.sam-gate-form .sam-field input { min-height: 46px; font-size: 1rem; }
+.sam-gate-submit { min-height: 48px; font-size: 1rem; }
+.sam-gate-link {
+  display: block;
+  margin: 14px auto 0;
+  padding: 6px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--sam-red-700);
+  font-size: .9rem;
+  font-weight: 600;
+}
+.sam-gate-link:hover { text-decoration: underline; }
+.sam-gate-foot { margin: 0; color: rgba(255,255,255,.82); font-size: .82rem; }
+
+/* Bloc « suivi assuré par l'équipe SudExpé » (phénologie, tavelure) */
+.sam-team-note {
+  margin: 0 0 18px;
+  padding: 16px 20px;
+  border: 1px solid var(--sam-line);
+  border-radius: var(--sam-radius);
+  background: #fff;
+  box-shadow: var(--sam-shadow-sm);
+}
+.sam-team-note p { margin: 0; color: var(--sam-muted); font-size: .92rem; }
+.sam-team-note .sam-team-kicker { margin: 0 0 4px; color: var(--sam-red-700); font-size: .74rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 
 /* Notifications */
 .sam-toast {
@@ -647,7 +716,8 @@ button.sam-top-item:hover { background: rgba(255,255,255,.12); }
 }
 
 @media (max-width: 1100px) {
-  .sam-app, .sam-app.is-collapsed { grid-template-columns: minmax(0, 1fr); background: var(--sam-bg); }
+  .sam-app, .sam-app.has-sidebar, .sam-app.has-sidebar.is-collapsed { grid-template-columns: minmax(0, 1fr); background: var(--sam-bg); }
+  .sam-app .sam-top-brand { display: inline-flex; }
   .sam-sidebar {
     position: fixed;
     top: 0;
@@ -662,8 +732,8 @@ button.sam-top-item:hover { background: rgba(255,255,255,.12); }
   .sam-sidebar-inner { width: 100%; padding-top: calc(18px + env(safe-area-inset-top)); }
   .sam-app.is-collapsed .sam-sidebar-inner { visibility: visible; }
   .sam-app.drawer-open .sam-sidebar { transform: none; }
-  .sam-burger { display: inline-flex; }
-  .sam-app.is-collapsed .sam-expand, .sam-collapse { display: none; }
+  .sam-app.has-sidebar .sam-burger { display: inline-flex; }
+  .sam-app.has-sidebar.is-collapsed .sam-expand, .sam-collapse { display: none; }
   .sam-content { padding: 22px 22px 48px; }
 }
 
@@ -675,6 +745,11 @@ button.sam-top-item:hover { background: rgba(255,255,255,.12); }
   .sam-top-item { padding: 0 10px; }
   .sam-top-item.is-disabled { display: none; }
   .sam-top-label { display: none; }
+  .sam-top-brand { margin: 0 4px 0 2px; }
+  .sam-top-brand img { height: 32px; }
+  /* Onglet Données sur téléphone : le logo est dans le tiroir des stations. */
+  .sam-app.has-sidebar .sam-top-brand { display: none; }
+  .sam-gate-card { padding: 24px 20px 18px; }
   .sam-content { padding: 16px 14px 40px; }
   .sam-page-head { margin-bottom: 14px; }
   .sam-tools {

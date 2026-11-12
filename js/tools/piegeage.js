@@ -7,7 +7,7 @@ const TEMPLATE = `  <div class="tool-main">
     <section class="hero panel">
       <div>
         <p class="eyebrow">Réseau de piégeage SudExpé</p>
-        <p class="hero-text">Lecture publique des résultats. Les campagnes, parcelles, pièges, relevés et interventions sont gérés par les comptes administrateurs SAM.</p>
+        <p class="hero-text">Résultats consultables par tous les comptes SAM. Les campagnes, parcelles, pièges, relevés et interventions sont gérés par l’équipe SudExpé.</p>
       </div>
       <div id="adminActions" class="admin-actions hidden">
         <button class="primary-button" id="newObservationButton" type="button">+ Relevé</button>
@@ -17,7 +17,6 @@ const TEMPLATE = `  <div class="tool-main">
         <button class="secondary-button" id="newInterventionButton" type="button">+ Intervention</button>
         <button class="secondary-button" id="speciesButton" type="button">Espèces</button>
         <button class="secondary-button" id="archivesButton" type="button">Archives</button>
-        <button class="secondary-button" id="migrationButton" type="button">Migrer l’ancienne base</button>
       </div>
     </section>
 
@@ -2728,7 +2727,7 @@ function bind() {
   ctx.scope.on(document,"click",closeAllFilterPanels);
   ctx.scope.on(document,"keydown",event=>{if(event.key==="Escape")closeAllFilterPanels();});
   $("speciesCancelEditButton").addEventListener("click",resetSpeciesForm);
-  $("newCampaignButton").addEventListener("click",()=>openCampaignDialog());$("newParcelButton").addEventListener("click",()=>openParcelDialog());$("newTrapButton").addEventListener("click",()=>openTrapDialog());$("newObservationButton").addEventListener("click",()=>openObservationDialog());$("newInterventionButton").addEventListener("click",openInterventionDialog);$("speciesButton").addEventListener("click",openSpeciesDialog);$("archivesButton").addEventListener("click",openArchivesDialog);$("migrationButton").addEventListener("click",()=>ctx.navigate("migration"));
+  $("newCampaignButton").addEventListener("click",()=>openCampaignDialog());$("newParcelButton").addEventListener("click",()=>openParcelDialog());$("newTrapButton").addEventListener("click",()=>openTrapDialog());$("newObservationButton").addEventListener("click",()=>openObservationDialog());$("newInterventionButton").addEventListener("click",openInterventionDialog);$("speciesButton").addEventListener("click",openSpeciesDialog);$("archivesButton").addEventListener("click",openArchivesDialog);
   $("campaignForm").addEventListener("submit",saveCampaign);$("parcelForm").addEventListener("submit",saveParcel);$("trapForm").addEventListener("submit",saveTrap);$("trapEventForm").addEventListener("submit",saveTrapEvent);$("observationForm").addEventListener("submit",saveObservation);$("interventionForm").addEventListener("submit",saveIntervention);$("speciesForm").addEventListener("submit",saveSpecies);
   $("campaignProtocol").addEventListener("change",toggleCampaignSpeciesSection);$("trapCampaign").addEventListener("change",populateTrapParcelSelect);$("observationCampaign").addEventListener("change",()=>{populateObservationParcelSelect();resetExcelImport();});$("observationParcel").addEventListener("change",()=>{populateObservationTrapSelect();resetExcelImport();});$("observationTrap").addEventListener("change",resetExcelImport);$("observationTotal").addEventListener("input",updateIdentificationSummary);$("aphidSpeciesRows").addEventListener("input",updateIdentificationSummary);$("interventionCampaign").addEventListener("change",()=>renderInterventionParcelChoices($("interventionCampaign").value,[]));
   root.querySelectorAll("[data-close]").forEach(btn=>btn.addEventListener("click",()=>$(btn.dataset.close).close()));root.querySelectorAll("dialog").forEach(dialog=>dialog.addEventListener("click",event=>{if(event.target===dialog)dialog.close();}));

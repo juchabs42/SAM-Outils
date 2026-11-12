@@ -300,3 +300,29 @@
 .tool-tavelure .controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
 .tool-tavelure .period-reminder { margin: 0; color: var(--sam-ink-2); font-size: .9rem; }
 .tool-tavelure .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Échelle d'intensité des projections */
+.tool-tavelure .tav-scale { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 4px 0 14px; }
+.tool-tavelure .tav-scale-title { color: var(--sam-ink-2); font-size: .86rem; font-weight: 650; }
+.tool-tavelure .tav-level { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; font-size: .8rem; font-weight: 700; white-space: nowrap; }
+.tool-tavelure .tav-level.is-faible { background: #e7f4e4; color: #2e6b25; }
+.tool-tavelure .tav-level.is-moyenne { background: #fff1d6; color: #8a5300; }
+.tool-tavelure .tav-level.is-forte { background: #fde0e2; color: #a3121f; }
+.tool-tavelure .tav-level.is-none { padding: 0; color: var(--sam-muted); font-weight: 500; }
+
+/* Graphique jour par jour */
+.tool-tavelure .tav-chart { min-height: 380px; }
+.tool-tavelure .tav-chart-note { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; color: var(--sam-muted); font-size: .84rem; }
+.tool-tavelure .tav-chart-note.hidden { display: none; }
+.tool-tavelure .tav-nodata-swatch { flex: none; width: 18px; height: 12px; border-radius: 3px; background: rgba(107, 113, 123, .12); border: 1px solid rgba(107, 113, 123, .22); }
+
+/* Historique : 10 derniers relevés + « Voir plus » */
+.tool-tavelure .tav-more { display: flex; justify-content: center; width: min(100%, 320px); margin: 14px auto 0; }
+.tool-tavelure .tav-more.hidden { display: none; }
+.tool-tavelure .tav-admin-hint { margin: 0 0 10px; color: var(--sam-muted); font-size: .84rem; }
+
+@media (max-width: 720px) {
+  .tool-tavelure .tav-chart { min-height: 320px; }
+  .tool-tavelure .tav-scale-title { flex-basis: 100%; }
+}
+.tool-tavelure .mobile-card-table td .tav-level { justify-self: start; width: max-content; }

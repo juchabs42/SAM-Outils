@@ -234,3 +234,11 @@
 @media (max-width: 760px) {
   .tool-irrigation .irr-chart { height: 250px; }
 }
+
+/* Lieu et période dans la carte « Période de programmation » */
+.tool-irrigation .irr-filters { margin: 14px 0 6px; }
+.tool-irrigation .irr-filters .sam-filters { gap: 12px 24px; }
+.tool-irrigation .irr-filters .sam-filter-label { font-size: .86rem; }
+@media (max-width: 760px) {
+  .tool-irrigation .irr-filters { margin-top: 10px; }
+}

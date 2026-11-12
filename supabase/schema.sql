@@ -5,13 +5,15 @@
 -- Le script peut être relancé sans risque : il ne supprime aucune donnée.
 --
 -- Principe des accès
---   • Lecture publique (sans compte) : phénologie, tavelure, piégeage.
+--   • Connexion obligatoire : sans compte, rien n'est lisible.
+--   • Lecture : tous les comptes connectés (phénologie, tavelure, piégeage,
+--     stations).
 --   • Écriture : uniquement les comptes listés dans public.sam_admins
 --     (un seul rôle administrateur pour les trois outils, qui peut aussi
 --     modifier les saisies des autres administrateurs).
---   • Bilan hydrique : sans compte, les parcelles restent sur l'appareil ;
---     avec un compte, elles sont enregistrées ici et visibles par leur seul
---     propriétaire.
+--   • Bilan hydrique : parcelles enregistrées dans le compte, visibles par
+--     leur seul propriétaire.
+--   • Profils et stations favorites : fichier connexion_comptes.sql.
 --
 -- Après exécution
 --   1. Authentication > Sign In / Providers : désactiver « Allow new users to
@@ -53,7 +55,8 @@ as $$
 $$;
 
 revoke all on function public.is_sam_admin() from public;
-grant execute on function public.is_sam_admin() to anon, authenticated;
+revoke execute on function public.is_sam_admin() from anon;
+grant execute on function public.is_sam_admin() to authenticated;
 
 insert into public.sam_admins (email)
 values ('jchabat@sudexpe.net')
@@ -200,6 +203,10 @@ create table if not exists public.tavelure_parametres (
   date_fin date null,
   updated_at timestamptz not null default now()
 );
+
+alter table public.tavelure_parametres add column if not exists seuil_moyen integer not null default 500;
+alter table public.tavelure_parametres add column if not exists seuil_fort integer not null default 2000;
+alter table public.tavelure_comptages alter column statut set default 'Validé';
 
 insert into public.tavelure_parametres (id, suivi_termine, date_fin)
 values (1, false, null)
@@ -420,7 +427,7 @@ revoke all on function public.sam_piegeage_delete_archived(text, uuid) from publ
 grant execute on function public.sam_piegeage_delete_archived(text, uuid) to authenticated;
 
 -- =============================================================================
--- 6. Droits et politiques : lecture publique, écriture administrateurs
+-- 6. Droits et politiques : lecture par les comptes connectés, écriture administrateurs
 -- =============================================================================
 do $$
 declare
@@ -433,7 +440,7 @@ declare
     'piegeage_trap_events', 'piegeage_observations_v2', 'piegeage_observation_details',
     'piegeage_interventions', 'piegeage_intervention_parcels'
   ];
-  -- Tables dont les lignes archivées sont masquées au public.
+  -- Tables dont les lignes archivées sont masquées aux comptes non administrateurs.
   archived_tables text[] := array[
     'piegeage_campaigns', 'piegeage_parcels', 'piegeage_traps',
     'piegeage_trap_events', 'piegeage_observations_v2', 'piegeage_interventions'
@@ -442,7 +449,8 @@ declare
 begin
   foreach t in array public_tables loop
     execute format('alter table public.%I enable row level security', t);
-    execute format('grant select on public.%I to anon, authenticated', t);
+    execute format('grant select on public.%I to authenticated', t);
+    execute format('revoke select on public.%I from anon', t);
     execute format('grant insert, update, delete on public.%I to authenticated', t);
 
     if t = 'piegeage_species' then
@@ -454,7 +462,8 @@ begin
     end if;
 
     execute format('drop policy if exists "%1$s lecture publique" on public.%1$I', t);
-    execute format('create policy "%1$s lecture publique" on public.%1$I for select to anon, authenticated using (%2$s)', t, read_rule);
+    execute format('drop policy if exists "%1$s lecture comptes" on public.%1$I', t);
+    execute format('create policy "%1$s lecture comptes" on public.%1$I for select to authenticated using (%2$s)', t, read_rule);
 
     execute format('drop policy if exists "%1$s écriture admin" on public.%1$I', t);
     execute format('create policy "%1$s écriture admin" on public.%1$I for insert to authenticated with check ((select public.is_sam_admin()))', t);

@@ -45,6 +45,7 @@ create table if not exists public.stations (
 );
 
 alter table public.stations add column if not exists installee boolean not null default true;
+alter table public.stations add column if not exists rimpro_id text;
 
 -- Noms, communes et coordonnées : fichier « Config réseaux - utilisateur - SudExpé » (10/11/2026).
 -- Altitude estimée à partir du modèle de terrain (Open-Meteo). Les valeurs déjà saisies ne sont pas écrasées.
@@ -152,7 +153,7 @@ from public.station_mesures m
 group by m.station_id, (m.mesure_le at time zone 'Europe/Paris')::date;
 
 -- -----------------------------------------------------------------------------
--- 3. Droits : lecture publique des stations publiques, gestion par les admins SAM
+-- 3. Droits : lecture par les comptes connectés, gestion par les admins SAM
 -- -----------------------------------------------------------------------------
 alter table public.stations enable row level security;
 alter table public.station_mesures enable row level security;
@@ -160,7 +161,7 @@ alter table public.station_capteurs enable row level security;
 
 drop policy if exists stations_lecture on public.stations;
 create policy stations_lecture on public.stations
-  for select using (publique or public.is_sam_admin());
+  for select to authenticated using (publique or (select public.is_sam_admin()));
 drop policy if exists stations_admin_maj on public.stations;
 create policy stations_admin_maj on public.stations
   for update to authenticated using (public.is_sam_admin()) with check (public.is_sam_admin());
@@ -173,17 +174,18 @@ create policy stations_admin_suppr on public.stations
 
 drop policy if exists station_mesures_lecture on public.station_mesures;
 create policy station_mesures_lecture on public.station_mesures
-  for select using (
-    exists (select 1 from public.stations s where s.id = station_id and (s.publique or public.is_sam_admin()))
+  for select to authenticated using (
+    exists (select 1 from public.stations s where s.id = station_id and (s.publique or (select public.is_sam_admin())))
   );
 
 drop policy if exists station_capteurs_lecture on public.station_capteurs;
-create policy station_capteurs_lecture on public.station_capteurs for select using (true);
+create policy station_capteurs_lecture on public.station_capteurs for select to authenticated using (true);
 drop policy if exists station_capteurs_admin on public.station_capteurs;
 create policy station_capteurs_admin on public.station_capteurs
   for all to authenticated using (public.is_sam_admin()) with check (public.is_sam_admin());
 
-grant select on public.stations, public.station_mesures, public.station_capteurs, public.station_journalier to anon, authenticated;
+grant select on public.stations, public.station_mesures, public.station_capteurs, public.station_journalier to authenticated;
+revoke select on public.stations, public.station_mesures, public.station_capteurs, public.station_journalier from anon;
 grant insert, update, delete on public.stations, public.station_capteurs to authenticated;
 -- Les mesures ne s'écrivent que par la collecte automatique (fonctions ci-dessous).
 revoke insert, update, delete on public.station_mesures from anon, authenticated;

@@ -1,11 +1,12 @@
 // SAM Bilan hydrique — suivi et projection du stock hydrique des parcelles (pommier).
-// Reprise de l'appli « SAM Bilan Hydrique » : sans compte, les parcelles sont gardées
-// sur l'appareil ; une fois connecté, elles sont enregistrées dans le compte.
+// Reprise de l'appli « SAM Bilan Hydrique » : les parcelles sont enregistrées dans le
+// compte (connexion obligatoire). Des parcelles gardées sur l'appareil par l'ancienne
+// version peuvent être importées dans le compte.
 // Nappe (Hub'Eau) et remontées capillaires retirées de cette version.
 import { storage } from '../core/util.js';
 
 const TEMPLATE = `    <div class="tool-main" id="appArea">
-      <section id="storageBanner" class="card storage-banner"></section>
+      <section id="storageBanner" class="card storage-banner hidden"></section>
       <section class="toolbar card">
         <div class="parcel-select-wrap">
           <label for="parcelSelect">Parcelle</label>
@@ -50,6 +51,7 @@ const TEMPLATE = `    <div class="tool-main" id="appArea">
                 <button id="refreshBtn" class="btn secondary" type="button">Actualiser</button>
               </div>
             </div>
+            <div id="bilanFilters" class="bilan-filters"></div>
             <div class="chart-wrap"><canvas id="waterChart"></canvas></div>
           </section>
 
@@ -147,6 +149,7 @@ const TEMPLATE = `    <div class="tool-main" id="appArea">
             </div>
             <div id="selectedIrrigationCount" class="muted small list-helper hidden"></div>
             <div id="irrigationList" class="item-list"></div>
+            <button id="irrigationMoreBtn" class="btn secondary list-more hidden" type="button"></button>
           </section>
         </div>
       </section>
@@ -173,7 +176,7 @@ const TEMPLATE = `    <div class="tool-main" id="appArea">
             <button id="geolocateBtn" class="btn secondary" type="button">Trouver ma position</button>
           </div>
           <div id="locationResults" class="location-results"></div>
-          <div class="location-selected">Position : <strong id="selectedLocation">Non définie</strong> <button id="useSharedLocationBtn" class="btn secondary small-btn" type="button">Prendre le lieu choisi en haut</button></div>
+          <div class="location-selected">Position : <strong id="selectedLocation">Non définie</strong></div>
 
           <div class="section-title">Sol</div>
           <div class="form-grid three">
@@ -294,7 +297,8 @@ const state = {
   editingIrrigation: null,
   selectedIrrigationIds: new Set(),
   irrigationImportRows: [],
-  chartSelection: null
+  chartSelection: null,
+  showAllIrrigations: false
 };
 
 const $ = id => root.querySelector(`#${id}`);
@@ -445,7 +449,6 @@ function bindEvents() {
   $('geolocateBtn')?.addEventListener('click', geolocate);
 
   ['clayPct', 'siltPct', 'sandPct', 'rootDepth'].forEach(id => $(id)?.addEventListener('input', updateSoilPreview));
-  $('useSharedLocationBtn')?.addEventListener('click', useSharedLocation);
   $('irrigationSystem')?.addEventListener('change', updateKcDefaults);
   $('groundCoverType')?.addEventListener('change', updateKcDefaults);
   $('harvestDate')?.addEventListener('change', updateKcCalendarText);
@@ -467,6 +470,7 @@ function bindEvents() {
   $('cancelIrrigationImportBtn')?.addEventListener('click', clearIrrigationImport);
   $('selectAllIrrigation')?.addEventListener('change', toggleSelectAllIrrigations);
   $('deleteSelectedIrrigationBtn')?.addEventListener('click', deleteSelectedIrrigations);
+  $('irrigationMoreBtn')?.addEventListener('click', () => { state.showAllIrrigations = !state.showAllIrrigations; renderIrrigationList(); });
 
   $('cancelModalBtn')?.addEventListener('click', closeIrrigationModal);
   $('modalBackdrop')?.addEventListener('click', e => { if (e.target === $('modalBackdrop')) closeIrrigationModal(); });
@@ -544,6 +548,7 @@ async function activateParcel(id) {
   state.weather = [];
   state.balance = [];
   state.selectedIrrigationIds.clear();
+  state.showAllIrrigations = false;
   storage.set(activeParcelKey(), id);
   $('parcelSelect').value = id;
   $('noParcelDashboard')?.classList.add('hidden');
@@ -563,7 +568,8 @@ function openNewParcel() {
 }
 
 function resetParcelForm() {
-  state.selectedLocation = sharedLocation();
+  // Le lieu de la parcelle se choisit ici (recherche ou position), pas dans un filtre commun.
+  state.selectedLocation = null;
   $('parcelFormTitle').textContent = 'Nouvelle parcelle';
   $('deleteParcelBtn')?.classList.add('hidden');
   ['parcelName','parcelArea','locationSearch','clayPct','siltPct','sandPct','rootDepth'].forEach(id => { if ($(id)) $(id).value = ''; });
@@ -823,13 +829,22 @@ function irrigationRowsForSelectedSeason() {
 function renderIrrigationList() {
   const list = $('irrigationList');
   if (!list) return;
-  const rows = irrigationRowsForSelectedSeason();
+  const rows = [...irrigationRowsForSelectedSeason()].sort((a, b) => String(b.irrigation_date).localeCompare(String(a.irrigation_date)));
+  const more = $('irrigationMoreBtn');
   if (!rows.length) {
     list.innerHTML = `<div class="muted small">Aucune irrigation enregistrée pour la saison ${getSelectedSeasonYear()}.</div>`;
+    more?.classList.add('hidden');
     updateBulkIrrigationUI();
     return;
   }
-  list.innerHTML = rows.map(i => `
+  // Les 10 dernières irrigations ; « Voir plus » affiche toute la saison.
+  const LIMIT = 10;
+  const shown = state.showAllIrrigations ? rows : rows.slice(0, LIMIT);
+  if (more) {
+    more.classList.toggle('hidden', rows.length <= LIMIT);
+    more.textContent = state.showAllIrrigations ? 'Voir moins' : `Voir plus (${rows.length - LIMIT} autre${rows.length - LIMIT > 1 ? 's' : ''})`;
+  }
+  list.innerHTML = shown.map(i => `
     <div class="list-item">
       <div class="list-item-main">
         <input class="irrigation-select" type="checkbox" data-select-irrigation="${i.id}" ${state.selectedIrrigationIds.has(i.id) ? 'checked' : ''} aria-label="Sélectionner l'irrigation du ${fmtDate(i.irrigation_date)}" />
@@ -1636,64 +1651,56 @@ async function exportXlsx() {
     renderStorageBanner();
   }
 
+  // Parcelles gardées sur l'appareil par l'ancienne version (sans compte) : import proposé.
   function renderStorageBanner() {
     const banner = $('storageBanner');
     if (!banner) return;
-    if (state.store.mode === 'cloud') {
-      ctx.ui.setMode('Parcelles de votre compte', 'admin');
-      banner.innerHTML = `<div><strong>Parcelles enregistrées dans votre compte</strong><p class="muted small">Retrouvez-les sur tous vos appareils une fois connecté (${escapeHTML(state.user.email || '')}). Elles ne sont visibles que par vous.</p></div>`;
-      return;
-    }
-    ctx.ui.setMode('Parcelles sur cet appareil');
-    banner.innerHTML = `<div><strong>Parcelles enregistrées sur cet appareil</strong><p class="muted small">Pas besoin de compte : vos parcelles restent dans ce navigateur. Pensez à faire une sauvegarde si vous changez d’appareil ou effacez les données du navigateur.</p></div>
-      <div class="actions">
-        <button id="backupExportBtn" class="btn secondary" type="button">Sauvegarder (fichier)</button>
-        <label class="btn secondary file-btn">Restaurer<input id="backupImportInput" type="file" accept="application/json,.json"></label>
-      </div>`;
-    $('backupExportBtn').addEventListener('click', exportLocalBackup);
-    $('backupImportInput').addEventListener('change', importLocalBackup);
+    const local = state.store.mode === 'cloud' ? localStore().exportAll() : null;
+    const count = local?.parcels?.length || 0;
+    banner.classList.toggle('hidden', !count);
+    if (!count) { banner.innerHTML = ''; return; }
+    banner.innerHTML = `<div><strong>${count} parcelle${count > 1 ? 's' : ''} enregistrée${count > 1 ? 's' : ''} sur cet appareil</strong><p class="muted small">Créée${count > 1 ? 's' : ''} avant la connexion obligatoire. Importez-${count > 1 ? 'les' : 'la'} dans votre compte pour ${count > 1 ? 'les' : 'la'} retrouver partout.</p></div>
+      <div class="actions"><button id="importLocalBtn" class="btn primary" type="button">Importer dans mon compte</button></div>`;
+    $('importLocalBtn').addEventListener('click', importLocalParcels);
   }
 
-  function exportLocalBackup() {
-    const data = state.store.exportAll();
-    downloadBlob(new Blob([JSON.stringify({ app: 'SAM Bilan hydrique', version: 1, savedAt: new Date().toISOString(), ...data }, null, 2)], { type: 'application/json' }),
-      `SAM_Bilan_parcelles_${toISO(localToday())}.json`);
-  }
-
-  async function importLocalBackup(event) {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  async function importLocalParcels() {
+    const button = $('importLocalBtn');
+    const local = localStore();
+    const data = local.exportAll();
+    if (button) button.disabled = true;
     try {
-      const data = JSON.parse(await file.text());
-      const added = state.store.importAll(data);
-      toast(added ? `${added} parcelle${added > 1 ? 's' : ''} restaurée${added > 1 ? 's' : ''}.` : 'Aucune nouvelle parcelle dans ce fichier.');
+      let added = 0;
+      for (const parcel of data.parcels) {
+        const { id, created_at: _created, user_id: _user, ...fields } = parcel;
+        const { data: row, error } = await state.store.insertParcel(fields);
+        if (error) throw error;
+        const irrigations = data.irrigations.filter(i => i.parcel_id === id).map(({ id: _i, created_at: _c, user_id: _u, ...i }) => ({ ...i, parcel_id: row.id }));
+        if (irrigations.length) {
+          const { error: e2 } = await state.store.insertIrrigations(irrigations);
+          if (e2) throw e2;
+        }
+        for (const rain of data.rain.filter(r => r.parcel_id === id)) {
+          const { id: _r, created_at: _c, user_id: _u, ...fields2 } = rain;
+          const { error: e3 } = await state.store.upsertRainCorrection({ ...fields2, parcel_id: row.id });
+          if (e3) throw e3;
+        }
+        await local.deleteParcel(id);
+        added += 1;
+      }
+      toast(`${added} parcelle${added > 1 ? 's' : ''} importée${added > 1 ? 's' : ''} dans votre compte.`);
+      renderStorageBanner();
       await loadParcels();
     } catch (error) {
-      toast(`Fichier illisible : ${error.message}`);
-    } finally {
-      event.target.value = '';
+      toast(`Import impossible : ${error.message || error}`);
+      if (button) button.disabled = false;
     }
   }
-
-  function sharedLocation() {
-    const place = ctx.location.get();
-    if (!place) return null;
-    const label = [place.name, place.admin2, place.admin1].filter(Boolean).join(', ');
-    return { name: label || place.name, latitude: Number(place.latitude), longitude: Number(place.longitude) };
-  }
-
-  function useSharedLocation() {
-    const loc = sharedLocation();
-    if (!loc) return;
-    state.selectedLocation = loc;
-    $('selectedLocation').textContent = `${loc.name} (${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)})`;
-  }
-
 
   // ------------------------------------------------------------------
   // Intégration SAM Outils : filtres, période, connexion
   // ------------------------------------------------------------------
-  ctx.filters({ location: true, locationLabel: 'Lieu par défaut des nouvelles parcelles', period: true });
+  ctx.filters({ location: false, period: true, mountIn: $('bilanFilters') });
   ctx.period.configure({
     presets: [
       { id: 'w30', label: '30 jours (dont 7 de prévision)', resolve: today => ({ start: toISO(addDays(parseISO(today), -22)), end: toISO(addDays(parseISO(today), 7)) }) },
@@ -1710,6 +1717,7 @@ async function exportXlsx() {
 
   ctx.period.onChange(async () => {
     state.selectedIrrigationIds.clear();
+    state.showAllIrrigations = false;
     renderIrrigationList();
     if (!state.activeParcel) return;
     if (state.weatherYear !== getSelectedSeasonYear()) await refreshBalance(true);

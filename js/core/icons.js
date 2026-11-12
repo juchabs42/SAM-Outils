@@ -27,6 +27,8 @@ export const icons = {
   install: svg('<rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M12 7v7"/><path d="m9 11 3 3 3-3"/>', { size: 20 }),
   lock: svg('<rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>', { size: 16 }),
   edit: svg('<path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>', { size: 16 }),
+  station: svg('<path d="M12 21V10.5"/><path d="M8.5 21h7"/><circle cx="12" cy="8" r="2.2"/><path d="M7.6 3.6a6.2 6.2 0 0 0 0 8.8M16.4 3.6a6.2 6.2 0 0 1 0 8.8"/>', { size: 20 }),
+  logout: svg('<path d="M14 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2v-2"/><path d="M10 12h11"/><path d="m17.5 8.5 3.5 3.5-3.5 3.5"/>', { size: 22 }),
 
   // Icônes des outils (couleurs de la maquette)
   toolIndicateurs: svg('<path d="M7.5 18.5h9.8a3.7 3.7 0 0 0 .4-7.4 5.2 5.2 0 0 0-9.9-1.2A4.3 4.3 0 0 0 7.5 18.5Z"/><path d="M5.6 7.2 4.4 6M9.6 4.6V3M2.6 10.7H1"/>', { size: 34, stroke: '#C5011A' }),

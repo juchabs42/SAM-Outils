@@ -1,7 +1,8 @@
 // SAM Indicateurs agroclimatiques — vue d'ensemble de la maquette + onglets
-// historiques (prévisions, déficit climatique, DPV, indice de contrainte, méthodes).
+// historiques (prévisions, déficit climatique, DPV, indice de contrainte).
 import { icons } from '../core/icons.js';
 import { presets } from '../core/period.js';
+import { placeLabel } from '../core/places.js';
 import { todayISO, addDaysISO, diffDaysISO, formatNumber, formatDateShort, formatDayMonth, escapeHtml, storage } from '../core/util.js';
 
 const TEMPLATE = `
@@ -12,7 +13,6 @@ const TEMPLATE = `
     <button class="ind-tab" type="button" role="tab" data-tab="deficit" aria-selected="false">Déficit climatique</button>
     <button class="ind-tab" type="button" role="tab" data-tab="vpd" aria-selected="false">DPV</button>
     <button class="ind-tab" type="button" role="tab" data-tab="contrainte" aria-selected="false">Indice de contrainte</button>
-    <button class="ind-tab" type="button" role="tab" data-tab="methodes" aria-selected="false">Méthodes</button>
   </div>
 
   <div class="ind-status" id="indStatus" aria-live="polite">
@@ -23,11 +23,11 @@ const TEMPLATE = `
   <!-- VUE D'ENSEMBLE -->
   <section class="ind-panel is-active" data-panel="overview">
     <div class="ind-kpis">
-      ${kpiCard('Et0', icons.kpiEt0, 'ET<sub>0</sub>', 'mm', 'Cumul période')}
       ${kpiCard('Rain', icons.kpiRain, 'Pluie', 'mm', 'Cumul période')}
       ${kpiCard('Temp', icons.kpiTemp, 'Température moyenne', '°C', 'Moyenne période')}
       ${kpiCard('Rh', icons.kpiHumidity, 'Humidité relative', '%', 'Moyenne période')}
       ${kpiCard('Wind', icons.kpiWind, 'Vent moyen', 'm/s', 'Moyenne période')}
+      ${kpiCard('Et0', icons.kpiEt0, 'ET<sub>0</sub>', 'mm', 'Cumul période')}
     </div>
     <p class="ind-note" id="ovNote"></p>
     <div class="ind-charts">
@@ -55,7 +55,7 @@ const TEMPLATE = `
 
   <!-- PRÉVISIONS MÉTÉO -->
   <section class="ind-panel" data-panel="meteo">
-    <div class="section-heading"><div><p class="eyebrow">Prévisions</p><h2>Prévisions météo</h2></div></div>
+    <div class="section-heading"><div><h2>Prévisions météo</h2></div></div>
     <div class="controls compact-controls">
       <label>Nombre de jours à afficher
         <select id="weatherDays"><option value="3">3 jours</option><option value="5">5 jours</option><option value="7" selected>7 jours</option></select>
@@ -72,7 +72,7 @@ const TEMPLATE = `
 
   <!-- DÉFICIT CLIMATIQUE -->
   <section class="ind-panel" data-panel="deficit">
-    <div class="section-heading"><div><p class="eyebrow">Bilan climatique</p><h2>Déficit climatique cumulé</h2><p>ET₀ − pluie sur la période choisie.</p></div></div>
+    <div class="section-heading"><div><h2>Déficit climatique cumulé</h2><p>ET₀ − pluie sur la période choisie.</p></div>${xlsxButton('deficit')}</div>
     <div class="metric-grid">
       <article class="metric-card"><p>ET₀ cumulée</p><strong id="et0Total">—</strong><span>Période sélectionnée</span></article>
       <article class="metric-card"><p>Pluie cumulée</p><strong id="rainTotal">—</strong><span>100 % prise en compte</span></article>
@@ -85,7 +85,7 @@ const TEMPLATE = `
 
   <!-- DPV -->
   <section class="ind-panel" data-panel="vpd">
-    <div class="section-heading"><div><p class="eyebrow">Demande atmosphérique</p><h2 id="vpdTitle">DPV horaire</h2><p>Calculé à partir de la température et de l’humidité relative horaires, sur la période choisie.</p></div></div>
+    <div class="section-heading"><div><h2 id="vpdTitle">DPV horaire</h2><p>Calculé à partir de la température et de l’humidité relative horaires, sur la période choisie.</p></div>${xlsxButton('vpd')}</div>
     <p class="ind-note" id="vpdNote"></p>
     <article class="panel">
       <div class="chart-wrap large"><canvas id="vpdChart"></canvas></div>
@@ -96,29 +96,24 @@ const TEMPLATE = `
 
   <!-- INDICE DE CONTRAINTE -->
   <section class="ind-panel" data-panel="contrainte">
-    <div class="section-heading"><div><p class="eyebrow">Synthèse</p><h2>Indice de contrainte journalier</h2><p>Score de 0 à 100 combinant l’intensité du DPV, la durée de forte demande atmosphérique, la durée de forte chaleur et l’ET₀.</p></div></div>
+    <div class="section-heading"><div><h2>Indice de contrainte journalier</h2><p>Score de 0 à 100 combinant l’intensité du DPV, la durée de forte demande atmosphérique, la durée de forte chaleur et l’ET₀.</p></div></div>
     <div class="score-legend">
       <span class="score-low">0–24 Faible</span><span class="score-moderate">25–49 Modérée</span><span class="score-high">50–74 Élevée</span><span class="score-severe">75–89 Sévère</span><span class="score-extreme">90–100 Extrême</span>
     </div>
     <p class="ind-note" id="scoreNote"></p>
-    <article class="panel"><div class="chart-wrap large"><canvas id="scoreChart"></canvas></div></article>
-    <div id="scoreCards" class="forecast-grid"></div>
-  </section>
-
-  <!-- MÉTHODES -->
-  <section class="ind-panel" data-panel="methodes">
-    <div class="section-heading"><div><h2>Méthodes</h2></div></div>
-    <div class="method-grid">
-      <article class="method-card"><h3>Vue d’ensemble</h3><p>Cumuls (ET₀, pluie) et moyennes (température, humidité relative, vent) calculés sur la période choisie. Comparaison : pour une période de 31 jours au plus, avec la période de même durée juste avant (semaine précédente, mois précédent…) ; au-delà, avec les mêmes dates l’année précédente, pour comparer des saisons identiques. La période de comparaison est rappelée sous les indicateurs.</p></article>
-      <article class="method-card"><h3>Prévisions météo</h3><p>Les prévisions de température, pluie, humidité et vent sont récupérées pour le lieu choisi. Les graphiques présentent leur évolution horaire, les cartes résument les valeurs quotidiennes.</p></article>
-      <article class="method-card"><h3>Déficit climatique</h3><p>Calcul journalier ET₀ − pluie, cumulé sur la période sélectionnée. Le bilan peut devenir négatif lorsque les pluies cumulées dépassent l’ET₀.</p></article>
-      <article class="method-card"><h3>DPV</h3><p>Calculé à partir de la température et de l’humidité relative horaires. La zone de conditions favorables est fixée entre 0,8 et 1,6 kPa.</p></article>
-      <article class="method-card"><h3>Indice de contrainte</h3><p>40 % intensité du DPV (moyenne des 3 heures présentant les DPV les plus élevés), 30 % durée avec DPV &gt; 2,5 kPa, 20 % durée de forte chaleur avec température &gt; 35 °C et 10 % ET₀.</p></article>
-      <article class="method-card"><h3>Sources</h3><p>Données Open-Meteo : réanalyse ERA5 (historique depuis 1940) jusqu’à 8 jours avant aujourd’hui, puis modèles de prévision pour les 7 derniers jours et les jours à venir, comme dans le Bilan hydrique.</p></article>
-    </div>
+    <article class="panel">
+      <p class="score-click-hint">Cliquez sur un jour du graphique pour afficher le détail de son score.</p>
+      <div class="chart-wrap large"><canvas id="scoreChart"></canvas></div>
+    </article>
+    <div id="scoreDetail" class="score-detail" aria-live="polite"></div>
     <div class="warning-box method-warning"><strong>À savoir :</strong> l’indice de contrainte est un indicateur d’aide à l’interprétation. Il donne une idée synthétique des conditions climatiques, mais ne constitue pas un modèle scientifique validé.</div>
   </section>
+
 </div>`;
+
+function xlsxButton(kind) {
+  return `<button class="ind-xlsx" type="button" data-xlsx="${kind}">${icons.download}<span>Télécharger (Excel)</span></button>`;
+}
 
 function kpiCard(key, icon, label, unit, caption) {
   return `<article class="ind-kpi">
@@ -517,6 +512,12 @@ export async function mount(root, ctx) {
     ...chartBase,
     plugins: { legend: { display: true, position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, padding: 18 } } }
   };
+  // Prévisions météo : légendes et titres d'axes plus gros pour la lisibilité.
+  const bigLegendPlugins = {
+    legend: { display: true, position: 'bottom', labels: { usePointStyle: true, boxWidth: 12, boxHeight: 11, padding: 22, color: '#1e2126', font: { size: 15, weight: '600' } } },
+    tooltip: { padding: 10, cornerRadius: 8, titleFont: { size: 13 }, bodyFont: { size: 13 } }
+  };
+  const bigAxisTitle = text => ({ display: true, text, color: '#3a3f47', font: { size: 14, weight: '600' } });
 
   function draw(name, canvasId, config) {
     if (charts[name]) charts[name].destroy();
@@ -762,14 +763,14 @@ export async function mount(root, ctx) {
     const lineCfg = (label, data, color, yTitle, extraY = {}) => ({
       type: 'line',
       data: { labels, datasets: [{ label, data, borderColor: color, backgroundColor: color, tension: 0.2, pointRadius: selectedDay ? 2 : 0, borderWidth: 2 }] },
-      options: { ...legacyBase, scales: { x: xAxis, y: { beginAtZero: false, title: { display: true, text: yTitle }, grid: { color: 'rgba(101,114,126,.13)' }, ...extraY } } }
+      options: { ...legacyBase, plugins: bigLegendPlugins, scales: { x: xAxis, y: { beginAtZero: false, title: bigAxisTitle(yTitle), grid: { color: 'rgba(101,114,126,.13)' }, ...extraY } } }
     });
     const suffix = selectedDay ? ` — ${formatDayMonth(selectedDay.date)}` : '';
     draw('temperature', 'temperatureChart', lineCfg(`Température${suffix}`, hours.map(x => x.temperature), '#e1064b', 'Température (°C)'));
     if (selectedDay) {
-      draw('rainForecast', 'rainForecastChart', { type: 'bar', data: { labels, datasets: [{ label: `Pluie horaire${suffix}`, data: hours.map(x => x.rain), backgroundColor: 'rgba(72,149,239,.75)', borderRadius: 3 }] }, options: { ...legacyBase, scales: { x: hourAxis, y: { beginAtZero: true, title: { display: true, text: 'Pluie horaire (mm)' } } } } });
+      draw('rainForecast', 'rainForecastChart', { type: 'bar', data: { labels, datasets: [{ label: `Pluie horaire${suffix}`, data: hours.map(x => x.rain), backgroundColor: 'rgba(72,149,239,.75)', borderRadius: 3 }] }, options: { ...legacyBase, plugins: bigLegendPlugins, scales: { x: hourAxis, y: { beginAtZero: true, title: bigAxisTitle('Pluie horaire (mm)') } } } });
     } else {
-      draw('rainForecast', 'rainForecastChart', { type: 'bar', data: { labels: days.map(d => formatDayMonth(d.date)), datasets: [{ label: 'Pluie', data: days.map(d => d.rain), backgroundColor: 'rgba(72,149,239,.75)', borderRadius: 5 }] }, options: { ...legacyBase, scales: { x: { grid: { display: false } }, y: { beginAtZero: true, title: { display: true, text: 'Pluie journalière (mm)' } } } } });
+      draw('rainForecast', 'rainForecastChart', { type: 'bar', data: { labels: days.map(d => formatDayMonth(d.date)), datasets: [{ label: 'Pluie', data: days.map(d => d.rain), backgroundColor: 'rgba(72,149,239,.75)', borderRadius: 5 }] }, options: { ...legacyBase, plugins: bigLegendPlugins, scales: { x: { grid: { display: false } }, y: { beginAtZero: true, title: bigAxisTitle('Pluie journalière (mm)') } } } });
     }
     draw('humidity', 'humidityChart', lineCfg(`Humidité relative${suffix}`, hours.map(x => x.humidity), '#52b788', 'Humidité relative (%)', { beginAtZero: true, max: 100 }));
     draw('wind', 'windChart', lineCfg(`Vent${suffix}`, hours.map(x => x.wind), '#65727e', 'Vent (km/h)', { beginAtZero: true }));
@@ -900,21 +901,70 @@ export async function mount(root, ctx) {
     });
   }
 
+  let selectedScoreDate = null;
+
+  function scoreDetailHtml(d) {
+    return `<article class="forecast-card score-detail-card">
+      <div class="score-detail-head">
+        <span class="score-detail-day">${escapeHtml(dayLabel(d.date))}</span>
+        <strong>${d.score}<small>/100</small></strong>
+        <span class="forecast-level" style="background:${scoreColor(d.score)}">${scoreLabel(d.score)}</span>
+      </div>
+      <div class="forecast-metrics">
+        <span>DPV moyen des 3 h les plus élevées : <b>${formatNumber(d.top3Vpd, 1)} kPa</b></span>
+        <span>DPV max : <b>${formatNumber(d.maxVpd, 1)} kPa</b> · ${vpdLabel(d.maxVpd)}</span>
+        <span>Durée DPV &gt; 2,5 kPa : <b>${d.hours25} h</b></span>
+        <span>Durée &gt; 35 °C : <b>${d.hours35} h</b></span>
+        <span>ET₀ : <b>${formatNumber(d.et0, 1)} mm</b></span>
+      </div>
+    </article>`;
+  }
+
+  function renderScoreDetail(days) {
+    const day = days.find(d => d.date === selectedScoreDate);
+    $('scoreDetail').innerHTML = day ? scoreDetailHtml(day) : '';
+    const chart = charts.score;
+    if (chart) {
+      const index = days.findIndex(d => d.date === selectedScoreDate);
+      chart.data.datasets[0].borderColor = days.map((_, i) => (i === index ? '#1e2126' : 'transparent'));
+      chart.data.datasets[0].borderWidth = days.map((_, i) => (i === index ? 2 : 0));
+      chart.update('none');
+    }
+  }
+
   function renderScore() {
     if (!dataset) return;
     const days = scoreDays();
     if (!days.length) {
       $('scoreNote').textContent = 'L’indice de contrainte n’est disponible que pour des périodes de moins de deux ans.';
-      $('scoreCards').innerHTML = '';
+      $('scoreDetail').innerHTML = '';
+      if (charts.score) { charts.score.destroy(); delete charts.score; }
       return;
     }
-    $('scoreNote').textContent = days.length > 14 ? 'Détail jour par jour affiché pour les périodes de 14 jours au plus.' : '';
+    $('scoreNote').textContent = '';
+    // Jour affiché par défaut : aujourd'hui, sinon le dernier jour passé de la période.
+    if (!days.some(d => d.date === selectedScoreDate)) {
+      const today = todayISO();
+      selectedScoreDate = (days.find(d => d.date === today) || [...days].reverse().find(d => d.date <= today) || days[days.length - 1]).date;
+    }
     draw('score', 'scoreChart', {
       type: 'bar',
-      data: { labels: days.map(d => formatDayMonth(d.date)), datasets: [{ label: 'Indice /100', data: days.map(d => d.score), backgroundColor: days.map(d => scoreColor(d.score)), borderRadius: days.length > 60 ? 1 : 6 }] },
-      options: { ...legacyBase, scales: { x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 14 } }, y: { beginAtZero: true, max: 100 } } }
+      data: { labels: days.map(d => formatDayMonth(d.date)), datasets: [{ label: 'Indice /100', data: days.map(d => d.score), backgroundColor: days.map(d => scoreColor(d.score)), borderRadius: days.length > 60 ? 1 : 6, borderSkipped: false }] },
+      options: {
+        ...legacyBase,
+        animation: false,
+        onClick: (event, _elements, chart) => {
+          const points = chart.getElementsAtEventForMode(event, 'index', { intersect: false }, true);
+          if (!points.length) return;
+          selectedScoreDate = days[points[0].index].date;
+          renderScoreDetail(days);
+        },
+        onHover: (event, elements) => { if (event.native?.target) event.native.target.style.cursor = elements.length ? 'pointer' : 'default'; },
+        plugins: { ...legacyBase.plugins, tooltip: { padding: 10, cornerRadius: 8, callbacks: { title: items => dayLabel(days[items[0].dataIndex].date), label: c => `Indice : ${c.parsed.y}/100 · ${scoreLabel(c.parsed.y)}`, footer: () => 'Cliquez pour le détail' } } },
+        scales: { x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 14 } }, y: { beginAtZero: true, max: 100 } }
+      }
     });
-    $('scoreCards').innerHTML = days.length > 14 ? '' : days.map(d => `<article class="forecast-card"><span>${dayLabel(d.date)}</span><strong>${d.score}/100</strong><span class="forecast-level">${scoreLabel(d.score)}</span><div class="forecast-metrics"><span>DPV moyen des 3 h les plus élevées : ${formatNumber(d.top3Vpd, 1)} kPa</span><span>DPV max : ${formatNumber(d.maxVpd, 1)} kPa · ${vpdLabel(d.maxVpd)}</span><span>Durée DPV &gt; 2,5 kPa : ${d.hours25} h</span><span>Durée &gt; 35 °C : ${d.hours35} h</span><span>ET₀ : ${formatNumber(d.et0, 1)} mm</span></div></article>`).join('');
+    renderScoreDetail(days);
   }
 
   function renderActive() {
@@ -981,7 +1031,63 @@ export async function mount(root, ctx) {
     link.remove();
   }
 
+  // --- Export Excel (déficit climatique, DPV) -------------------------------
+  const excelDate = iso => { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d, 12, 0, 0); };
+  const r2 = v => (Number.isFinite(v) ? Math.round(v * 100) / 100 : null);
+
+  async function exportXlsx(kind, button) {
+    if (!dataset) return;
+    const place = ctx.location.get();
+    const p = ctx.period.get();
+    if (button) button.disabled = true;
+    try {
+      await ctx.vendor.xlsx();
+      const XLSX = window.XLSX;
+      const wb = XLSX.utils.book_new();
+      const sheet = (rows, widths) => {
+        const ws = XLSX.utils.aoa_to_sheet(rows, { cellDates: true, dateNF: 'dd/mm/yyyy' });
+        ws['!cols'] = widths.map(wch => ({ wch }));
+        return ws;
+      };
+      let name;
+      if (kind === 'deficit') {
+        let cumul = 0;
+        const rows = dataset.cur.daily.map(d => {
+          const et0 = Number(d.et0) || 0;
+          const rain = Number(d.rain) || 0;
+          cumul += et0 - rain;
+          return [excelDate(d.date), r2(et0), r2(rain), r2(et0 - rain), r2(cumul)];
+        });
+        if (!rows.length) { ctx.ui.toast('Aucune donnée à exporter.'); return; }
+        XLSX.utils.book_append_sheet(wb, sheet([['Date', 'ET₀ (mm)', 'Pluie (mm)', 'ET₀ − pluie (mm)', 'Bilan cumulé (mm)'], ...rows], [12, 10, 11, 16, 18]), 'Déficit climatique');
+        name = 'Deficit_climatique';
+      } else {
+        const hours = dataset.cur.hourly;
+        if (!hours?.length) { ctx.ui.toast('Le DPV n’est disponible que pour des périodes de moins de deux ans.'); return; }
+        const hourlyRows = hours.map(h => [excelDate(h.date), `${h.time.slice(11, 13)}:00`, r2(h.temperature), r2(h.humidity), r2(h.vpd), Number.isFinite(h.vpd) ? vpdLabel(h.vpd) : '']);
+        const byDay = new Map();
+        hours.forEach(h => { if (!byDay.has(h.date)) byDay.set(h.date, []); if (Number.isFinite(h.vpd)) byDay.get(h.date).push(h.vpd); });
+        const dailyRowsX = [...byDay.entries()].map(([date, values]) => [
+          excelDate(date), r2(average(values)), r2(values.length ? Math.max(...values) : null),
+          values.filter(v => v > 1.5).length, values.filter(v => v > 2.5).length, values.filter(v => v > 3.5).length, values.filter(v => v > 4.5).length
+        ]);
+        XLSX.utils.book_append_sheet(wb, sheet([['Date', 'Heure', 'Température (°C)', 'Humidité relative (%)', 'DPV (kPa)', 'Lecture'], ...hourlyRows], [12, 8, 16, 20, 10, 32]), 'DPV horaire');
+        XLSX.utils.book_append_sheet(wb, sheet([['Date', 'DPV moyen (kPa)', 'DPV max (kPa)', 'Heures > 1,5 kPa', 'Heures > 2,5 kPa', 'Heures > 3,5 kPa', 'Heures > 4,5 kPa'], ...dailyRowsX], [12, 15, 13, 15, 15, 15, 15]), 'DPV journalier');
+        name = 'DPV';
+      }
+      const info = [['Lieu', placeLabel(place)], ['Latitude', place?.latitude ?? ''], ['Longitude', place?.longitude ?? ''], ['Période', `${formatDateShort(p.start, true)} → ${formatDateShort(p.end, true)}`], ['Source', 'Open-Meteo (réanalyse ERA5 jusqu’à J−8, puis modèles de prévision)'], ['Export', new Date().toLocaleString('fr-FR')]];
+      XLSX.utils.book_append_sheet(wb, sheet(info, [12, 60]), 'Infos');
+      XLSX.writeFile(wb, `SAM_${name}_${(place?.name || 'lieu').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/gi, '_')}_${p.start}_${p.end}.xlsx`);
+    } catch (error) {
+      console.error(error);
+      ctx.ui.toast(`Export impossible : ${error.message || error}`);
+    } finally {
+      if (button) button.disabled = false;
+    }
+  }
+
   // --- Événements -----------------------------------------------------------
+  root.querySelectorAll('[data-xlsx]').forEach(btn => btn.addEventListener('click', () => exportXlsx(btn.dataset.xlsx, btn)));
   root.querySelectorAll('.ind-tab').forEach(btn => btn.addEventListener('click', () => selectTab(btn.dataset.tab)));
   $('indRefresh').addEventListener('click', () => load({ force: true }));
   $('weatherDays').addEventListener('change', () => { selectedWeatherDate = null; renderWeather(); });
@@ -1023,7 +1129,7 @@ export async function mount(root, ctx) {
   ctx.location.onChange(() => load());
   ctx.period.onChange(() => load());
 
-  selectTab(['overview', 'meteo', 'deficit', 'vpd', 'contrainte', 'methodes'].includes(activeTab) ? activeTab : 'overview');
+  selectTab(['overview', 'meteo', 'deficit', 'vpd', 'contrainte'].includes(activeTab) ? activeTab : 'overview');
   await load();
 
   return {

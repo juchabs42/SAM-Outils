@@ -197,3 +197,14 @@
 .tool-bilan .file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .tool-bilan .small-btn { min-height: 30px; padding: 4px 10px; font-size: .8rem; margin-left: 8px; }
 .tool-bilan .modal-backdrop { z-index: 80; }
+
+/* Période choisie dans la carte « Bilan hydrique » */
+.tool-bilan .bilan-filters { margin: 12px 0 4px; }
+.tool-bilan .bilan-filters .sam-filters { gap: 10px 20px; }
+.tool-bilan .bilan-filters .sam-filter-hint { margin-top: 0; }
+.tool-bilan .storage-banner.hidden { display: none; }
+/* Historique des irrigations : 10 dernières + « Voir plus » */
+.tool-bilan .list-more { display: flex; width: min(100%, 320px); margin: 14px auto 0; justify-content: center; }
+.tool-bilan .list-more.hidden { display: none; }
+/* Le choix de la période s'ouvre par-dessus la carte du graphique. */
+.tool-bilan .chart-card { overflow: visible; }

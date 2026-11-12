@@ -632,3 +632,47 @@
 .tool-indicateurs .vpd-legend-inline.is-compact { gap: 6px; margin-top: 10px; }
 .tool-indicateurs .vpd-legend-inline.is-compact .vpd-legend-item { padding: 4px 8px; font-size: .72rem; }
 .tool-indicateurs .vpd-legend-inline.is-compact .vpd-swatch { width: 11px; height: 11px; }
+
+/* Téléchargement Excel (déficit climatique, DPV) */
+.tool-indicateurs .section-heading { align-items: center; }
+.tool-indicateurs .ind-xlsx {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid #1d6f42;
+  border-radius: 9px;
+  background: #fff;
+  color: #1d6f42;
+  font: inherit;
+  font-size: .9rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+.tool-indicateurs .ind-xlsx:hover { background: #eaf5ee; }
+.tool-indicateurs .ind-xlsx:disabled { opacity: .6; cursor: progress; }
+
+/* Prévisions météo : titres des graphiques plus lisibles */
+.tool-indicateurs .weather-chart-grid .panel h3 { font-size: 1.2rem; }
+
+/* Indice de contrainte : détail du jour cliqué */
+.tool-indicateurs .score-click-hint { margin: 0 0 8px; color: var(--sam-muted); font-size: .86rem; }
+.tool-indicateurs .score-detail { margin-top: 16px; }
+.tool-indicateurs .score-detail:empty { display: none; }
+.tool-indicateurs .score-detail-card { max-width: 560px; padding: 18px 20px; border-radius: 12px; box-shadow: var(--sam-shadow-sm); }
+.tool-indicateurs .score-detail-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+.tool-indicateurs .score-detail-day { color: var(--sam-ink-2); font-size: 1rem; font-weight: 700; text-transform: capitalize; }
+.tool-indicateurs .score-detail-card strong { font-size: 1.9rem; line-height: 1; }
+.tool-indicateurs .score-detail-card strong small { color: var(--sam-muted); font-size: 1rem; font-weight: 600; }
+.tool-indicateurs .score-detail-card .forecast-level { color: #1e2126; }
+.tool-indicateurs .score-detail-card .forecast-metrics span { color: var(--sam-ink-2); font-size: .9rem; }
+.tool-indicateurs .score-detail-card .forecast-metrics b { color: var(--sam-ink); }
+.tool-indicateurs .method-warning { margin: 18px 0 0; }
+
+@media (max-width: 760px) {
+  .tool-indicateurs .section-heading { display: grid; gap: 10px; }
+  .tool-indicateurs .ind-xlsx { width: 100%; justify-content: center; }
+  .tool-indicateurs .weather-chart-grid .panel h3 { font-size: 1.08rem; }
+}
