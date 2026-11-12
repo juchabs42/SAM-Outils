@@ -1,7 +1,7 @@
 // SAM Suivi phénologique — degrés-jours et stades du pommier.
 // Reprise de l'appli « SAM Phénologie » : lecture libre, saisie réservée aux administrateurs.
 // Ajouts : saison choisie avec la période, lieu par défaut des nouvelles parcelles.
-import { todayISO, addDaysISO } from '../core/util.js';
+import { todayISO, addDaysISO, fetchAllRows } from '../core/util.js';
 
 const TEMPLATE = `<div class="tool-main">
     <section class="sam-team-note" aria-label="Suivi phénologique SudExpé">
@@ -1485,9 +1485,11 @@ async function loadRemoteData() {
     updateSyncBadge();
     return;
   }
+  // Lecture par pages de 1 000 lignes : Supabase ne renvoie jamais plus de 1 000 lignes
+  // par requête (plusieurs saisons d'observations dépassent largement ce nombre).
   const [{ data: parcels, error: parcelError }, { data: observations, error: obsError }] = await Promise.all([
-    supabaseClient.from('pheno_parcels').select('*').order('exploitation').order('name'),
-    supabaseClient.from('pheno_observations').select('*').order('obs_date')
+    fetchAllRows(() => supabaseClient.from('pheno_parcels').select('*').order('exploitation').order('name').order('id')),
+    fetchAllRows(() => supabaseClient.from('pheno_observations').select('*').order('obs_date').order('id'))
   ]);
   if (parcelError || obsError) {
     console.error(parcelError || obsError);

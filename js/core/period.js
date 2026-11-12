@@ -1,9 +1,11 @@
 // Période : chaque outil déclare ses propres préréglages (7 derniers jours,
 // 7 prochains jours, saison…) et garde son choix ; la sélection est mémorisée
-// outil par outil sur l'appareil.
+// outil par outil sur l'appareil, ou seulement pendant la visite
+// (remember: 'session' : la période par défaut revient à chaque ouverture du site).
 import { storage, todayISO, addDaysISO, diffDaysISO, isISODate, clampISO, createEmitter, formatDateLong } from './util.js';
 
 const emitter = createEmitter();
+const sessionSelections = new Map();
 let toolId = null;
 let config = null;
 let current = null;
@@ -63,7 +65,7 @@ export const period = {
       emitter.emit(null, { reason: 'configure' });
       return null;
     }
-    const saved = storage.get(`period.${id}`, null);
+    const saved = config.remember === 'session' ? sessionSelections.get(id) || null : storage.get(`period.${id}`, null);
     current = resolveSelection(saved || { preset: config.defaultPreset });
     emitter.emit(current, { reason: 'configure' });
     return current;
@@ -76,9 +78,11 @@ export const period = {
       ? resolveSelection({ preset: selection.preset })
       : resolveSelection({ preset: 'custom', start: selection.start, end: selection.end });
     if (!next) return;
-    storage.set(`period.${toolId}`, next.preset === 'custom'
+    const remembered = next.preset === 'custom'
       ? { preset: 'custom', start: next.start, end: next.end }
-      : { preset: next.preset });
+      : { preset: next.preset };
+    if (config.remember === 'session') sessionSelections.set(toolId, remembered);
+    else storage.set(`period.${toolId}`, remembered);
     if (sameSelection(next, current)) return;
     current = next;
     emitter.emit(current, { reason: 'user' });

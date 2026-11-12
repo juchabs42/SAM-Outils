@@ -72,21 +72,34 @@
   background: #fff;
   box-shadow: var(--sam-shadow-sm);
 }
-.tool-donnees .don-views { display: flex; flex-wrap: wrap; gap: 8px; }
+.tool-donnees .don-views { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; flex: 1 1 560px; max-width: 760px; }
 .tool-donnees .don-view-tab {
-  min-height: 46px;
-  padding: 0 20px;
-  border: 1px solid var(--sam-line);
-  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 60px;
+  padding: 0 16px;
+  border: 2px solid var(--sam-red-100);
+  border-radius: 12px;
   background: #fff;
-  color: var(--sam-ink-2);
+  color: var(--sam-red-800);
   font: inherit;
-  font-size: .95rem;
-  font-weight: 700;
+  font-size: 1.02rem;
+  font-weight: 750;
+  letter-spacing: -.005em;
   cursor: pointer;
+  box-shadow: var(--sam-shadow-sm);
+  transition: background .15s, border-color .15s, color .15s, box-shadow .15s, transform .15s;
 }
-.tool-donnees .don-view-tab:hover { border-color: #cbd0d6; color: var(--sam-ink); }
-.tool-donnees .don-view-tab.is-active { border: 2px solid var(--sam-red-700); padding: 0 19px; background: var(--sam-red-50); color: var(--sam-red-700); }
+@media (hover: hover) {
+  .tool-donnees .don-view-tab:hover { border-color: var(--sam-red-700); background: var(--sam-red-50); transform: translateY(-1px); }
+}
+.tool-donnees .don-view-tab.is-active,
+.tool-donnees .don-view-tab.is-active:hover { border-color: var(--sam-red-700); background: var(--sam-red-700); color: #fff; box-shadow: 0 8px 20px rgba(197, 1, 26, .28); transform: none; }
+.tool-donnees .don-view-icon { display: inline-flex; flex: none; }
+.tool-donnees .don-view-icon .sam-icon { width: 26px; height: 26px; }
+.tool-donnees .don-view-label { min-width: 0; line-height: 1.15; text-align: left; }
 .tool-donnees .don-filters { min-width: 0; }
 .tool-donnees .don-filters .sam-filters { gap: 12px 18px; }
 .tool-donnees .don-filters .sam-filter-button { min-width: 260px; }
@@ -126,6 +139,31 @@
 .tool-donnees .don-rim-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
 .tool-donnees .don-rim-frame { position: relative; height: min(78vh, 760px); min-height: 480px; border: 1px solid var(--sam-line); border-radius: 10px; overflow: hidden; background: var(--sam-bg-soft); }
 .tool-donnees .don-rim-frame iframe { display: block; width: 100%; height: 100%; border: 0; background: #fff; }
+.tool-donnees .don-rim-frame.is-loading iframe { visibility: hidden; }
+.tool-donnees .don-rim-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 14px;
+  padding-top: min(16vh, 150px);
+  color: var(--sam-ink-2);
+  font-size: .92rem;
+  font-weight: 600;
+  background: var(--sam-bg-soft);
+}
+.tool-donnees .don-rim-frame.is-loading .don-rim-loading { display: flex; }
+.tool-donnees .don-rim-spinner {
+  width: 44px;
+  height: 44px;
+  border: 4px solid var(--sam-line);
+  border-top-color: var(--sam-red-700);
+  border-radius: 50%;
+  animation: sam-spin .8s linear infinite;
+}
 .tool-donnees .don-rim-empty h3 { margin: 0 0 6px; font-size: 1.05rem; }
 .tool-donnees .don-rim-empty p { margin: 0; color: var(--sam-muted); }
 .tool-donnees .don-rim-empty .don-hint { margin-top: 10px; }
@@ -150,9 +188,10 @@
   .tool-donnees .don-kpi { padding: 12px; }
   .tool-donnees .don-kpi-value { font-size: 1.25rem; }
   .tool-donnees .don-toolbar { padding: 12px; }
-  .tool-donnees .don-views { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; gap: 6px; }
-  .tool-donnees .don-view-tab { min-height: 44px; padding: 0 6px; font-size: .84rem; line-height: 1.15; }
-  .tool-donnees .don-view-tab.is-active { padding: 0 5px; }
+  .tool-donnees .don-views { width: 100%; max-width: none; flex-basis: 100%; gap: 6px; }
+  .tool-donnees .don-view-tab { flex-direction: column; gap: 4px; min-height: 70px; padding: 8px 4px; font-size: .82rem; }
+  .tool-donnees .don-view-label { text-align: center; }
+  .tool-donnees .don-view-icon .sam-icon { width: 24px; height: 24px; }
   .tool-donnees .don-filters { width: 100%; }
   .tool-donnees .don-filters .sam-filter-button { min-width: 0; }
   .don-mode-filter .don-seg { width: 100%; }

@@ -49,7 +49,6 @@ const TEMPLATE = `
     <div id="j0Warning" class="warning-box hidden">Le graphique démarrera dès qu’une date sera renseignée pour le stade 7.</div>
     <div id="emptyGraphMessage" class="empty-state hidden">Aucun épisode enregistré sur la période sélectionnée.</div>
     <div class="chart-wrap tav-chart"><canvas id="sporeChart" aria-label="Pluie et spores projetées par jour, avec le cumul des spores"></canvas></div>
-    <p class="tav-chart-note" id="tavChartNote"><span class="tav-nodata-swatch" aria-hidden="true"></span>Jour sans relevé (ni pluie ni spores enregistrées)</p>
   </section>
 
   <section id="episodeEntryPanel" class="panel admin-only hidden">
@@ -410,7 +409,6 @@ export async function mount(root, ctx) {
     byId('j0Warning').classList.toggle('hidden', Boolean(j0));
     byId('emptyGraphMessage').classList.toggle('hidden', !j0 || rows.length > 0);
     canvas.parentElement.classList.toggle('hidden', empty);
-    byId('tavChartNote').classList.toggle('hidden', empty || !days.some(d => !d.recorded));
     if (chart) { chart.destroy(); chart = null; }
     if (empty) return;
     const narrow = window.innerWidth <= 720;

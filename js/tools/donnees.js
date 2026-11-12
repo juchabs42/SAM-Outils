@@ -2,6 +2,7 @@
 // Les mesures horaires sont collectées par Supabase (fichier supabase/stations.sql) :
 // le site ne contacte jamais Comsag directement, le jeton d'accès reste côté serveur.
 import { presets } from '../core/period.js';
+import { icons } from '../core/icons.js';
 import { stationState } from '../core/stations.js';
 import { todayISO, addDaysISO, formatNumber, formatDayMonth, formatDateShort, escapeHtml, storage } from '../core/util.js';
 
@@ -10,7 +11,7 @@ const DATA_START = '2026-09-01';
 const PAGE = 1000;
 const HOUR = 3600000;
 const COLORS = {
-  temp: '#db0b1f', tmax: '#db0b1f', tmoy: '#7f1d2d', tmin: '#3b8ad9',
+  temp: '#db0b1f', tmax: '#7d0a16', tmoy: '#db0b1f', tmin: '#3b8ad9',
   hr: '#2e7d32', hrLight: '#8cc58f', rain: '#3b8ad9', cumul: '#1f3b63', humect: '#0f766e'
 };
 const SENSOR_COLORS = ['#7c3aed', '#0f766e', '#b45309', '#be185d', '#475569', '#0891b2'];
@@ -33,9 +34,9 @@ const RIMPRO_MODELS = [
   { id: 'cydia', label: 'Carpocapse', path: 'cydia.xhtml' }
 ];
 const VIEWS = [
-  { id: 'meteo', label: 'Météo' },
-  { id: 'irrigation', label: 'Irrigation' },
-  { id: 'maladies', label: 'Maladies / ravageurs' }
+  { id: 'meteo', label: 'Météo', icon: 'viewMeteo' },
+  { id: 'irrigation', label: 'Irrigation', icon: 'viewIrrigation' },
+  { id: 'maladies', label: 'Maladies / ravageurs', icon: 'viewSanitaire' }
 ];
 
 const TEMPLATE = `
@@ -59,7 +60,7 @@ const TEMPLATE = `
 
   <section class="don-toolbar" id="donToolbar">
     <div class="don-views" role="tablist" aria-label="Données affichées">
-      ${VIEWS.map(v => `<button type="button" role="tab" class="don-view-tab" data-view="${v.id}" aria-selected="false">${v.label}</button>`).join('')}
+      ${VIEWS.map(v => `<button type="button" role="tab" class="don-view-tab" data-view="${v.id}" aria-selected="false"><span class="don-view-icon">${icons[v.icon]}</span><span class="don-view-label">${v.label}</span></button>`).join('')}
     </div>
     <div class="don-filters" id="donFilters"></div>
   </section>
@@ -88,7 +89,6 @@ const TEMPLATE = `
   </section>
 
   <section class="don-view" data-panel="irrigation" hidden>
-    <p class="don-info hidden" id="donIrrigationInfo"></p>
     <p class="don-empty hidden" id="donIrrigationEmpty"></p>
     <div class="don-chart-list" id="donIrrigationCharts"></div>
   </section>
@@ -196,12 +196,13 @@ export async function mount(root, ctx) {
   ctx.filters({ location: false, period: true, mountIn: $('donFilters') });
   ctx.period.configure({
     presets: [
-      presets.lastDays(2, '48 dernières heures'),
       presets.lastDays(7),
+      presets.lastDays(2, '48 dernières heures'),
       presets.lastDays(30),
       { id: 'all', label: 'Depuis le début des mesures', resolve: today => ({ start: DATA_START, end: today }) }
     ],
     defaultPreset: 'last7',
+    remember: 'session',
     min: DATA_START,
     max: () => todayISO(),
     hint: 'Mesures horaires des stations Comsag du réseau SAM, collectées automatiquement toutes les 30 minutes.'
@@ -419,9 +420,9 @@ export async function mount(root, ctx) {
       specs.push(lineSpec('hr', 'Humidité relative', '%', [{ label: 'Humidité relative (%)', data: series(base, it => it.row?.hr ?? null), color: COLORS.hr }], { yMin: 0, yMax: 100 }));
     } else {
       specs.push(lineSpec('temp', 'Température', '°C', [
-        { label: 'T max (°C)', data: series(base, d => d.tmax), color: COLORS.tmax },
-        { label: 'T moy. (°C)', data: series(base, d => d.tmoy), color: COLORS.tmoy, width: 1.5 },
-        { label: 'T min (°C)', data: series(base, d => d.tmin), color: COLORS.tmin }
+        { label: 'T max (°C)', data: series(base, d => d.tmax), color: COLORS.tmax, dash: [6, 4], width: 1.8 },
+        { label: 'T moy. (°C)', data: series(base, d => d.tmoy), color: COLORS.tmoy, width: 2.2 },
+        { label: 'T min (°C)', data: series(base, d => d.tmin), color: COLORS.tmin, dash: [6, 4], width: 1.8 }
       ]));
       specs.push(lineSpec('hr', 'Humidité relative', '%', [
         { label: 'HR max (%)', data: series(base, d => d.hrmax), color: COLORS.hrLight, dash: [5, 4], width: 1.4 },
@@ -669,9 +670,7 @@ export async function mount(root, ctx) {
   function renderIrrigation() {
     const base = timeBase();
     const empty = !hourly.length;
-    const { specs, probes } = irrigationSpecs(base);
-    $('donIrrigationInfo').textContent = probes ? '' : 'Pas de sonde d’irrigation (dendromètre, tensiomètre, sonde capacitive) sur cette station : seule la pluviométrie est affichée.';
-    $('donIrrigationInfo').classList.toggle('hidden', Boolean(probes) || empty);
+    const { specs } = irrigationSpecs(base);
     $('donIrrigationEmpty').textContent = empty ? 'Aucune mesure reçue sur cette période.' : '';
     $('donIrrigationEmpty').classList.toggle('hidden', !empty);
     if (empty) { destroyCharts(); $('donIrrigationCharts').innerHTML = ''; }
@@ -701,9 +700,19 @@ export async function mount(root, ctx) {
         </div>
         <a class="don-btn" href="${escapeHtml(url)}" target="_blank" rel="noopener">Ouvrir dans RIMpro ↗</a>
       </header>
-      <div class="don-rim-frame"><iframe src="${escapeHtml(url)}" title="RIMpro — ${escapeHtml(model.label)} — ${escapeHtml(station.nom)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div>
+      <div class="don-rim-frame is-loading">
+        <div class="don-rim-loading" role="status"><span class="don-rim-spinner" aria-hidden="true"></span><span id="donRimLoadingText">Chargement du modèle RIMpro…</span></div>
+        <iframe src="${escapeHtml(url)}" title="RIMpro — ${escapeHtml(model.label)} — ${escapeHtml(station.nom)}" referrerpolicy="no-referrer-when-downgrade"></iframe>
+      </div>
       <p class="don-hint">Modèle ${escapeHtml(model.label.toLowerCase())} calculé par RIMpro à partir de la station. Si le graphique ne s’affiche pas, utilisez « Ouvrir dans RIMpro ».</p>
     </article>`;
+    const frame = box.querySelector('.don-rim-frame');
+    const iframe = frame.querySelector('iframe');
+    iframe.addEventListener('load', () => frame.classList.remove('is-loading'), { once: true });
+    ctx.scope.timeout(() => {
+      const text = box.querySelector('#donRimLoadingText');
+      if (text && frame.classList.contains('is-loading')) text.textContent = 'RIMpro met un peu de temps à répondre…';
+    }, 12000);
   }
 
   function renderDailyTable() {

@@ -312,9 +312,6 @@
 
 /* Graphique jour par jour */
 .tool-tavelure .tav-chart { min-height: 380px; }
-.tool-tavelure .tav-chart-note { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; color: var(--sam-muted); font-size: .84rem; }
-.tool-tavelure .tav-chart-note.hidden { display: none; }
-.tool-tavelure .tav-nodata-swatch { flex: none; width: 18px; height: 12px; border-radius: 3px; background: rgba(107, 113, 123, .12); border: 1px solid rgba(107, 113, 123, .22); }
 
 /* Historique : 10 derniers relevés + « Voir plus » */
 .tool-tavelure .tav-more { display: flex; justify-content: center; width: min(100%, 320px); margin: 14px auto 0; }

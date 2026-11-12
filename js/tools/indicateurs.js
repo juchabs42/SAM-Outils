@@ -485,14 +485,15 @@ export async function mount(root, ctx) {
   ctx.filters({ location: true, period: true });
   ctx.period.configure({
     presets: [
+      presets.nextDays(7, '7 prochains jours (prévisions)'),
       presets.lastDays(7),
       presets.lastDays(30),
       presets.lastDays(90),
       presets.lastDays(365, '12 derniers mois'),
-      presets.nextDays(7, '7 prochains jours (prévisions)'),
       presets.sinceJanuary()
     ],
-    defaultPreset: 'last7',
+    defaultPreset: 'next7',
+    remember: 'session',
     min: '1940-01-01',
     max: () => addDaysISO(todayISO(), 7),
     hint: 'Historique disponible depuis 1940 · prévisions jusqu’à J+7.'
