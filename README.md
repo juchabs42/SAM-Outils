@@ -6,6 +6,7 @@ Application unique qui regroupe les six outils SAM et les données des stations 
 | Outil | Données | Accès (compte connecté) |
 |---|---|---|
 | Données (stations du réseau) | Supabase (collecte Comsag) + RIMpro | lecture ; fiche station administrateur |
+| Cartographie (stations du réseau) | Supabase + fonds IGN Géoplateforme | lecture ; un clic ouvre les données de la station |
 | Indicateurs agroclimatiques | Open-Meteo | lecture |
 | Programmation irrigation | Open-Meteo | lecture |
 | Bilan hydrique | Open-Meteo + parcelles | parcelles du compte (privées) |

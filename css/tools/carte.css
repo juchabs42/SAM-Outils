@@ -1,0 +1,132 @@
+/* SAM Cartographie — stations du réseau SAM */
+.tool-carte .carte-main { display: grid; gap: 14px; }
+.tool-carte .hidden { display: none !important; }
+.tool-carte .carte-setup { padding: 16px 18px; border: 1px solid var(--sam-line); border-radius: var(--sam-radius); background: var(--sam-bg-soft); color: var(--sam-ink-2); }
+.tool-carte .carte-card {
+  padding: 12px;
+  border: 1px solid var(--sam-line);
+  border-radius: var(--sam-radius);
+  background: #fff;
+  box-shadow: var(--sam-shadow-sm);
+}
+.tool-carte .carte-map {
+  height: max(480px, calc(100dvh - 290px));
+  border-radius: 10px;
+  overflow: hidden;
+  background: #eef0f3;
+  font-family: var(--sam-font);
+}
+.tool-carte .carte-foot { display: grid; gap: 6px; padding: 12px 4px 2px; }
+.tool-carte .carte-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--sam-ink-2); font-size: .88rem; }
+.tool-carte .carte-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.tool-carte .carte-legend b { color: var(--sam-muted); font-weight: 600; }
+.tool-carte .carte-legend i,
+.tool-carte .carte-tip-list i { flex: none; width: 13px; height: 13px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, .2); background: #b8bcc4; }
+.tool-carte .carte-hint { margin: 0; color: var(--sam-muted); font-size: .84rem; }
+.tool-carte .carte-admin { margin: 4px 4px 0; color: var(--sam-muted); font-size: .82rem; }
+
+/* Couleurs d'état (légende, stations, listes) */
+.tool-carte .is-ok { --dot: #2e7d32; }
+.tool-carte .is-late { --dot: #e08a00; }
+.tool-carte .is-silent { --dot: #8a9099; }
+.tool-carte .is-off { --dot: #5f6670; }
+.tool-carte .is-never { --dot: #b8bcc4; }
+.tool-carte .carte-legend i[class],
+.tool-carte .carte-tip-list i[class] { background: var(--dot, #b8bcc4); }
+.tool-carte .carte-legend i.is-pending,
+.tool-carte .carte-tip-list i.is-pending { background: #fff; border: 2px dashed #7b818a; box-shadow: none; }
+
+/* Stations */
+.tool-carte .carte-marker { background: none; border: 0; }
+.tool-carte .carte-marker:focus,
+.tool-carte .carte-cluster:focus { outline: none; }
+.tool-carte .carte-marker.is-static { cursor: grab; }
+.tool-carte .carte-dot {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: var(--dot, #b8bcc4);
+  box-shadow: 0 1px 5px rgba(0, 0, 0, .4);
+  transition: transform .15s ease;
+}
+.tool-carte .carte-dot.is-pending { border: 2px dashed #6b7280; background: rgba(255, 255, 255, .92); box-shadow: 0 1px 3px rgba(0, 0, 0, .25); }
+.tool-carte .carte-marker:hover .carte-dot,
+.tool-carte .carte-marker:focus-visible .carte-dot { transform: scale(1.35); }
+.tool-carte .carte-marker:focus-visible .carte-dot { box-shadow: 0 0 0 3px #111827; }
+
+/* Groupes de stations voisines : anneau coloré selon l'état des stations */
+.tool-carte .carte-cluster { background: none; border: 0; }
+.tool-carte .carte-cluster-ring {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 5px;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .35);
+  transition: transform .15s ease;
+}
+.tool-carte .carte-cluster-ring b {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--sam-ink);
+  font: 800 .95rem/1 var(--sam-font);
+}
+.tool-carte .carte-cluster:hover .carte-cluster-ring,
+.tool-carte .carte-cluster:focus-visible .carte-cluster-ring { transform: scale(1.12); }
+.tool-carte .carte-cluster:focus-visible .carte-cluster-ring { box-shadow: 0 0 0 3px #111827; }
+
+/* Infobulle (survol) et fiche (toucher) */
+.tool-carte .carte-tooltip,
+.tool-carte .carte-popup .leaflet-popup-content-wrapper {
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--sam-ink);
+  box-shadow: 0 10px 28px rgba(17, 24, 39, .24);
+}
+.tool-carte .carte-popup .leaflet-popup-content { margin: 0; font-size: inherit; line-height: inherit; }
+.tool-carte .carte-tip { display: grid; gap: 4px; box-sizing: border-box; width: max-content; min-width: 210px; max-width: 300px; padding: 12px 14px; font-family: var(--sam-font); font-size: .84rem; line-height: 1.35; white-space: normal; }
+.tool-carte .carte-tip.is-group { max-width: 340px; }
+.tool-carte .carte-tip-name { font-size: 1rem; line-height: 1.25; }
+.tool-carte .carte-popup .carte-tip-name { padding-right: 20px; }
+.tool-carte .carte-tip-sub { color: var(--sam-muted); }
+.tool-carte .carte-tip-state { display: inline-flex; align-items: center; gap: 7px; color: var(--sam-ink-2); font-weight: 650; }
+.tool-carte .carte-tip-state::before { content: ""; flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--dot, #b8bcc4); }
+.tool-carte .carte-tip-state.is-pending::before { background: #fff; border: 1.5px dashed #6b7280; }
+.tool-carte .carte-tip-values { display: flex; flex-wrap: wrap; gap: 2px 12px; margin-top: 3px; padding-top: 7px; border-top: 1px solid var(--sam-line-2); color: var(--sam-ink-2); }
+.tool-carte .carte-tip-values b { color: var(--sam-ink); font-size: .98rem; }
+.tool-carte .carte-tip-values.is-loading { color: var(--sam-muted); font-style: italic; }
+.tool-carte .carte-tip-cta { margin-top: 5px; color: var(--sam-red-700); font-weight: 700; }
+.tool-carte .carte-tip-list { display: grid; gap: 5px; margin: 4px 0 0; padding: 7px 0 0; border-top: 1px solid var(--sam-line-2); list-style: none; }
+.tool-carte .carte-tip-list li { display: flex; align-items: center; gap: 8px; }
+.tool-carte .carte-tip-list i { width: 11px; height: 11px; }
+.tool-carte .carte-tip-list span { flex: 1; min-width: 0; font-weight: 600; }
+.tool-carte .carte-tip-list em { flex: none; color: var(--sam-muted); font-style: normal; }
+.tool-carte .carte-tip-list .carte-tip-more { color: var(--sam-muted); padding-left: 19px; }
+.tool-carte .carte-open {
+  margin-top: 8px;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--sam-red-700);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .tool-carte .carte-card { padding: 8px; }
+  .tool-carte .carte-map { height: max(420px, calc(100dvh - 240px)); }
+  .tool-carte .carte-tip { max-width: min(300px, calc(100vw - 60px)); }
+}

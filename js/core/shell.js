@@ -9,7 +9,7 @@ import { profile } from './profile.js';
 import { stationStore, stationState } from './stations.js';
 import { storage, debounce, escapeHtml, formatDateShort, loadScript, loadCss, VENDOR, isISODate, todayISO } from './util.js';
 
-const APP_VERSION = '2026-11-12.3';
+const APP_VERSION = '2026-11-12.4';
 
 export const TOOLS = [
   { id: 'indicateurs', title: 'SAM Indicateurs agroclimatiques', card: 'Indicateurs <br>agro&shy;clima&shy;tiques', icon: 'toolIndicateurs' },
@@ -25,6 +25,7 @@ const HIDDEN_TOOLS = [
 // Rubriques hors « Outils SAM » : pas de cartes d'outils.
 const SECTIONS = [
   { id: 'donnees', title: 'Données des stations SAM', section: true, sidebar: 'stations' },
+  { id: 'carte', title: 'Cartographie des stations SAM', section: true },
   { id: 'profil', title: 'Mon profil', section: true }
 ];
 const DEFAULT_TOOL = 'indicateurs';
@@ -608,14 +609,17 @@ async function mountTool(tool) {
 
 function updateTopNav(tool) {
   const inData = tool?.id === 'donnees';
+  const inMap = tool?.id === 'carte';
   const inTools = !tool?.section;
   const outils = $('sam-nav-outils');
   const donnees = $('sam-nav-donnees');
+  const carte = $('sam-nav-carte');
   outils.href = `#/${storage.get('lastTool', DEFAULT_TOOL)}`;
   outils.classList.toggle('is-active', inTools);
   donnees.classList.toggle('is-active', inData);
+  carte.classList.toggle('is-active', inMap);
   $('sam-perso').classList.toggle('is-active', tool?.id === 'profil');
-  [[outils, inTools], [donnees, inData]].forEach(([link, on]) => {
+  [[outils, inTools], [donnees, inData], [carte, inMap]].forEach(([link, on]) => {
     if (on) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
   });

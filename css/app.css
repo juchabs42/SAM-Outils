@@ -324,6 +324,7 @@ a.sam-top-item { text-decoration: none; }
   height: 4px;
   background: #fff;
 }
+.sam-nav-short { display: none; }
 .is-disabled { opacity: .55; cursor: default; }
 
 .sam-topright { display: flex; align-items: center; gap: 4px; margin-left: auto; }
@@ -745,6 +746,18 @@ body.is-gated { background: var(--sam-red-900); }
   .sam-tools { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 }
 
+/* Barre du haut : l'adresse mail laisse la place aux trois onglets (elle reste en info-bulle). */
+@media (max-width: 1240px) {
+  .sam-perso .sam-top-label { display: none; }
+}
+
+@media (min-width: 761px) and (max-width: 900px) {
+  .sam-topbar { padding: 0 12px 0 10px; }
+  .sam-topnav { gap: 2px; }
+  .sam-topnav-link { padding: 0 12px; }
+  .sam-top-item .sam-top-label { display: none; }
+}
+
 @media (max-width: 1100px) {
   .sam-app, .sam-app.has-sidebar, .sam-app.has-sidebar.is-collapsed { grid-template-columns: minmax(0, 1fr); background: var(--sam-bg); }
   .sam-app .sam-top-brand { display: inline-flex; }
@@ -770,7 +783,9 @@ body.is-gated { background: var(--sam-red-900); }
 @media (max-width: 760px) {
   body { font-size: 15px; }
   .sam-topbar { padding: 0 8px; padding-top: env(safe-area-inset-top); gap: 2px; min-height: 58px; }
-  .sam-topnav-link { padding: 0 10px; font-size: .86rem; }
+  .sam-topnav-link { padding: 0 9px; font-size: .84rem; }
+  .sam-nav-long { display: none; }
+  .sam-nav-short { display: inline; }
   .sam-topnav-link.is-disabled { display: none; }
   .sam-top-item { padding: 0 10px; }
   .sam-top-item.is-disabled { display: none; }
@@ -804,4 +819,18 @@ body.is-gated { background: var(--sam-red-900); }
   .sam-filter { width: 100%; }
   .sam-filter-button { width: 100%; min-width: 0; }
   .sam-popover { position: fixed; top: auto; left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom)); width: auto; max-height: 72vh; }
+}
+
+/* Trois onglets + profil + déconnexion sur un téléphone : on resserre. */
+@media (max-width: 430px) {
+  .sam-topnav { gap: 0; }
+  .sam-topnav-link { padding: 0 8px; }
+  .sam-topright { gap: 0; }
+  .sam-top-item { padding: 0 9px; }
+}
+
+@media (max-width: 370px) {
+  .sam-topnav-link { padding: 0 6px; font-size: .78rem; letter-spacing: .01em; }
+  .sam-top-item { padding: 0 7px; }
+  .sam-app:not(.has-sidebar) .sam-top-brand img { height: 28px; }
 }
