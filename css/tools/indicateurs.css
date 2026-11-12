@@ -633,26 +633,9 @@
 .tool-indicateurs .vpd-legend-inline.is-compact .vpd-legend-item { padding: 4px 8px; font-size: .72rem; }
 .tool-indicateurs .vpd-legend-inline.is-compact .vpd-swatch { width: 11px; height: 11px; }
 
-/* Téléchargement Excel (déficit climatique, DPV) */
+/* Téléchargements (CSV, PNG) : petits boutons identiques à l'onglet Données */
 .tool-indicateurs .section-heading { align-items: center; }
-.tool-indicateurs .ind-xlsx {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex: none;
-  min-height: 42px;
-  padding: 0 16px;
-  border: 1px solid #1d6f42;
-  border-radius: 9px;
-  background: #fff;
-  color: #1d6f42;
-  font: inherit;
-  font-size: .9rem;
-  font-weight: 650;
-  cursor: pointer;
-}
-.tool-indicateurs .ind-xlsx:hover { background: #eaf5ee; }
-.tool-indicateurs .ind-xlsx:disabled { opacity: .6; cursor: progress; }
+.tool-indicateurs .ind-downloads { margin-left: auto; }
 
 /* Prévisions météo : titres des graphiques plus lisibles */
 .tool-indicateurs .weather-chart-grid .panel h3 { font-size: 1.2rem; }
@@ -673,6 +656,6 @@
 
 @media (max-width: 760px) {
   .tool-indicateurs .section-heading { display: grid; gap: 10px; }
-  .tool-indicateurs .ind-xlsx { width: 100%; justify-content: center; }
   .tool-indicateurs .weather-chart-grid .panel h3 { font-size: 1.08rem; }
 }
+.tool-indicateurs .section-heading .sam-csv-button { justify-self: start; }

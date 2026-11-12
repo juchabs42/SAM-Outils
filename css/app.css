@@ -659,6 +659,36 @@ body.is-gated { background: var(--sam-red-900); }
 .sam-team-note p { margin: 0; color: var(--sam-muted); font-size: .92rem; }
 .sam-team-note .sam-team-kicker { margin: 0 0 4px; color: var(--sam-red-700); font-size: .74rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 
+/* Bouton de téléchargement (« CSV », « PNG », « SVG ») : même aspect dans tous les outils */
+.tool-root button.sam-csv-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  gap: 6px;
+  width: auto;
+  min-width: 0;
+  min-height: 32px;
+  margin: 0;
+  padding: 0 11px;
+  border: 1px solid var(--sam-line);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--sam-ink);
+  box-shadow: none;
+  filter: none;
+  font: inherit;
+  font-size: .8rem;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: .02em;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.tool-root button.sam-csv-button:hover { border-color: var(--sam-red-700); background: #fff; color: var(--sam-red-700); }
+.tool-root button.sam-csv-button:disabled { opacity: .55; cursor: progress; }
+.tool-root .sam-download-group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+
 /* Notifications */
 .sam-toast {
   position: fixed;

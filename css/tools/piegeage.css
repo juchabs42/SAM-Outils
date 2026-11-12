@@ -392,3 +392,9 @@
   .tool-piegeage .filter-grid > .export-actions { grid-template-columns: 1fr 1fr; }
   .tool-piegeage .export-actions .export-button { font-size: .8rem; gap: 5px; padding: 0 6px; }
 }
+
+/* Téléchargements : petits boutons « CSV » et « SVG » (même aspect que l'onglet Données) */
+.tool-piegeage .filter-grid > .export-actions { align-items: flex-end; align-self: flex-end; gap: 6px; }
+@media (max-width: 720px) {
+  .tool-piegeage .filter-grid > .export-actions { display: flex; justify-content: flex-start; }
+}

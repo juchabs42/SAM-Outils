@@ -87,8 +87,7 @@ const TEMPLATE = `    <div class="tool-main" id="appArea">
               <p class="muted small">L'export contient date, ET₀, Kc, ETc, pluie Open‑Meteo, pluie corrigée, pluie efficace, irrigation, stock et drainage, sur toute la saison.</p>
             </div>
             <div class="actions">
-              <button id="exportCsvBtn" class="btn secondary" type="button">CSV</button>
-              <button id="exportXlsxBtn" class="btn secondary" type="button">Excel</button>
+              <button id="exportCsvBtn" class="sam-csv-button" type="button" title="Télécharger les données de la saison (CSV)">CSV</button>
             </div>
           </section>
         </div>
@@ -478,7 +477,6 @@ function bindEvents() {
 
   $('refreshBtn')?.addEventListener('click', () => refreshBalance(true));
   $('exportCsvBtn')?.addEventListener('click', exportCsv);
-  $('exportXlsxBtn')?.addEventListener('click', exportXlsx);
 
   $('rainCorrectionDate')?.addEventListener('change', updateRainCorrectionInfo);
   $('saveRainCorrectionBtn')?.addEventListener('click', saveRainCorrection);
@@ -1507,16 +1505,6 @@ function exportCsv() {
   downloadBlob(new Blob(['\ufeff' + csv], { type:'text/csv;charset=utf-8' }), `SAM_Bilan_${safeFilename(state.activeParcel.name)}_${getSelectedSeasonYear()}.csv`);
 }
 
-async function exportXlsx() {
-  if (!state.activeParcel || !state.balance.length) return;
-  try { await ctx.vendor.xlsx(); } catch { /* message ci-dessous */ }
-  if (!window.XLSX) return toast('Le module Excel n’a pas pu être chargé.');
-  const ws = XLSX.utils.json_to_sheet(exportRows());
-  ws['!cols'] = [{wch:12},{wch:12},{wch:11},{wch:8},{wch:18},{wch:22},{wch:24},{wch:21},{wch:15},{wch:16},{wch:24},{wch:18},{wch:20},{wch:12}];
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Bilan hydrique');
-  XLSX.writeFile(wb, `SAM_Bilan_${safeFilename(state.activeParcel.name)}_${getSelectedSeasonYear()}.xlsx`);
-}
 
 
 

@@ -76,7 +76,7 @@ const TEMPLATE = `
     <article class="don-card don-daily" id="donDaily">
       <header class="don-chart-head">
         <div><h3>Résumé journalier</h3></div>
-        <button class="don-btn don-btn-small" type="button" id="donDailyCsv" title="Exporter le résumé journalier (CSV)">CSV</button>
+        <button class="sam-csv-button" type="button" id="donDailyCsv" title="Télécharger le résumé journalier (CSV)">CSV</button>
       </header>
       <div class="don-table-wrap">
         <table class="don-table">
@@ -614,7 +614,7 @@ export async function mount(root, ctx) {
           <h3>${escapeHtml(spec.title)}${spec.unit ? ` <small>(${escapeHtml(spec.unit)})</small>` : ''}</h3>
           ${spec.hint ? `<p class="don-chart-hint">${escapeHtml(spec.hint)}</p>` : ''}
         </div>
-        <button class="don-btn don-btn-small" type="button" data-csv="${spec.id}" title="Exporter les données de ce graphique (CSV)">CSV</button>
+        <button class="sam-csv-button" type="button" data-csv="${spec.id}" title="Télécharger les données de ce graphique (CSV)">CSV</button>
       </header>
       <div class="don-chart${spec.kind === 'rain' ? ' is-short' : ''}"><canvas aria-label="${escapeHtml(spec.title)}"></canvas></div>
     </article>`).join('');

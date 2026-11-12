@@ -2,7 +2,6 @@
 // historiques (prévisions, déficit climatique, DPV, indice de contrainte).
 import { icons } from '../core/icons.js';
 import { presets } from '../core/period.js';
-import { placeLabel } from '../core/places.js';
 import { todayISO, addDaysISO, diffDaysISO, formatNumber, formatDateShort, formatDayMonth, escapeHtml, storage } from '../core/util.js';
 
 const TEMPLATE = `
@@ -112,7 +111,7 @@ const TEMPLATE = `
 </div>`;
 
 function xlsxButton(kind) {
-  return `<button class="ind-xlsx" type="button" data-xlsx="${kind}">${icons.download}<span>Télécharger (Excel)</span></button>`;
+  return `<button class="sam-csv-button" type="button" data-xlsx="${kind}" title="Télécharger les données (CSV)">CSV</button>`;
 }
 
 function kpiCard(key, icon, label, unit, caption) {
@@ -190,12 +189,9 @@ function segmented(id) {
 }
 
 function moreMenu(id) {
-  return `<div class="ind-more-wrap">
-    <button class="ind-more" type="button" data-more="${id}" aria-label="Plus d’options" aria-expanded="false">${icons.dots}</button>
-    <div class="ind-more-menu hidden" data-more-menu="${id}">
-      <button type="button" data-export="csv" data-chart="${id}">${icons.download}Exporter les données (CSV)</button>
-      <button type="button" data-export="png" data-chart="${id}">${icons.download}Enregistrer l’image (PNG)</button>
-    </div>
+  return `<div class="sam-download-group ind-downloads">
+    <button class="sam-csv-button" type="button" data-export="csv" data-chart="${id}" title="Télécharger les données du graphique (CSV)">CSV</button>
+    <button class="sam-csv-button" type="button" data-export="png" data-chart="${id}" title="Télécharger l’image du graphique (PNG)">PNG</button>
   </div>`;
 }
 
@@ -1032,63 +1028,47 @@ export async function mount(root, ctx) {
     link.remove();
   }
 
-  // --- Export Excel (déficit climatique, DPV) -------------------------------
-  const excelDate = iso => { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d, 12, 0, 0); };
-  const r2 = v => (Number.isFinite(v) ? Math.round(v * 100) / 100 : null);
+  // --- Export CSV (déficit climatique, DPV) ---------------------------------
+  const csvNum = v => (Number.isFinite(v) ? String(Math.round(v * 100) / 100).replace('.', ',') : '');
+  const frDate = iso => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 
-  async function exportXlsx(kind, button) {
+  function downloadCsv(name, rows) {
+    const csv = rows.map(row => row.map(cell => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n');
+    const url = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function exportXlsx(kind) {
     if (!dataset) return;
     const place = ctx.location.get();
     const p = ctx.period.get();
-    if (button) button.disabled = true;
-    try {
-      await ctx.vendor.xlsx();
-      const XLSX = window.XLSX;
-      const wb = XLSX.utils.book_new();
-      const sheet = (rows, widths) => {
-        const ws = XLSX.utils.aoa_to_sheet(rows, { cellDates: true, dateNF: 'dd/mm/yyyy' });
-        ws['!cols'] = widths.map(wch => ({ wch }));
-        return ws;
-      };
-      let name;
-      if (kind === 'deficit') {
-        let cumul = 0;
-        const rows = dataset.cur.daily.map(d => {
-          const et0 = Number(d.et0) || 0;
-          const rain = Number(d.rain) || 0;
-          cumul += et0 - rain;
-          return [excelDate(d.date), r2(et0), r2(rain), r2(et0 - rain), r2(cumul)];
-        });
-        if (!rows.length) { ctx.ui.toast('Aucune donnée à exporter.'); return; }
-        XLSX.utils.book_append_sheet(wb, sheet([['Date', 'ET₀ (mm)', 'Pluie (mm)', 'ET₀ − pluie (mm)', 'Bilan cumulé (mm)'], ...rows], [12, 10, 11, 16, 18]), 'Déficit climatique');
-        name = 'Deficit_climatique';
-      } else {
-        const hours = dataset.cur.hourly;
-        if (!hours?.length) { ctx.ui.toast('Le DPV n’est disponible que pour des périodes de moins de deux ans.'); return; }
-        const hourlyRows = hours.map(h => [excelDate(h.date), `${h.time.slice(11, 13)}:00`, r2(h.temperature), r2(h.humidity), r2(h.vpd), Number.isFinite(h.vpd) ? vpdLabel(h.vpd) : '']);
-        const byDay = new Map();
-        hours.forEach(h => { if (!byDay.has(h.date)) byDay.set(h.date, []); if (Number.isFinite(h.vpd)) byDay.get(h.date).push(h.vpd); });
-        const dailyRowsX = [...byDay.entries()].map(([date, values]) => [
-          excelDate(date), r2(average(values)), r2(values.length ? Math.max(...values) : null),
-          values.filter(v => v > 1.5).length, values.filter(v => v > 2.5).length, values.filter(v => v > 3.5).length, values.filter(v => v > 4.5).length
-        ]);
-        XLSX.utils.book_append_sheet(wb, sheet([['Date', 'Heure', 'Température (°C)', 'Humidité relative (%)', 'DPV (kPa)', 'Lecture'], ...hourlyRows], [12, 8, 16, 20, 10, 32]), 'DPV horaire');
-        XLSX.utils.book_append_sheet(wb, sheet([['Date', 'DPV moyen (kPa)', 'DPV max (kPa)', 'Heures > 1,5 kPa', 'Heures > 2,5 kPa', 'Heures > 3,5 kPa', 'Heures > 4,5 kPa'], ...dailyRowsX], [12, 15, 13, 15, 15, 15, 15]), 'DPV journalier');
-        name = 'DPV';
-      }
-      const info = [['Lieu', placeLabel(place)], ['Latitude', place?.latitude ?? ''], ['Longitude', place?.longitude ?? ''], ['Période', `${formatDateShort(p.start, true)} → ${formatDateShort(p.end, true)}`], ['Source', 'Open-Meteo (réanalyse ERA5 jusqu’à J−8, puis modèles de prévision)'], ['Export', new Date().toLocaleString('fr-FR')]];
-      XLSX.utils.book_append_sheet(wb, sheet(info, [12, 60]), 'Infos');
-      XLSX.writeFile(wb, `SAM_${name}_${(place?.name || 'lieu').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/gi, '_')}_${p.start}_${p.end}.xlsx`);
-    } catch (error) {
-      console.error(error);
-      ctx.ui.toast(`Export impossible : ${error.message || error}`);
-    } finally {
-      if (button) button.disabled = false;
+    const slug = (place?.name || 'lieu').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/gi, '_');
+    if (kind === 'deficit') {
+      let cumul = 0;
+      const rows = dataset.cur.daily.map(d => {
+        const et0 = Number(d.et0) || 0;
+        const rain = Number(d.rain) || 0;
+        cumul += et0 - rain;
+        return [frDate(d.date), csvNum(et0), csvNum(rain), csvNum(et0 - rain), csvNum(cumul)];
+      });
+      if (!rows.length) return ctx.ui.toast('Aucune donnée à télécharger.');
+      downloadCsv(`SAM_Deficit_climatique_${slug}_${p.start}_${p.end}.csv`, [['Date', 'ET0 (mm)', 'Pluie (mm)', 'ET0 - pluie (mm)', 'Bilan cumulé (mm)'], ...rows]);
+      return;
     }
+    const hours = dataset.cur.hourly;
+    if (!hours?.length) return ctx.ui.toast('Le DPV n’est disponible que pour des périodes de moins de deux ans.');
+    const rows = hours.map(h => [frDate(h.date), `${h.time.slice(11, 13)}:00`, csvNum(h.temperature), csvNum(h.humidity), csvNum(h.vpd), Number.isFinite(h.vpd) ? vpdLabel(h.vpd) : '']);
+    downloadCsv(`SAM_DPV_${slug}_${p.start}_${p.end}.csv`, [['Date', 'Heure', 'Température (°C)', 'Humidité relative (%)', 'DPV (kPa)', 'Lecture'], ...rows]);
   }
 
   // --- Événements -----------------------------------------------------------
-  root.querySelectorAll('[data-xlsx]').forEach(btn => btn.addEventListener('click', () => exportXlsx(btn.dataset.xlsx, btn)));
+  root.querySelectorAll('[data-xlsx]').forEach(btn => btn.addEventListener('click', () => exportXlsx(btn.dataset.xlsx)));
   root.querySelectorAll('.ind-tab').forEach(btn => btn.addEventListener('click', () => selectTab(btn.dataset.tab)));
   $('indRefresh').addEventListener('click', () => load({ force: true }));
   $('weatherDays').addEventListener('change', () => { selectedWeatherDate = null; renderWeather(); });
@@ -1105,19 +1085,7 @@ export async function mount(root, ctx) {
     if (end === todayISO()) ctx.period.set({ preset: `last${days}` });
     else ctx.period.set({ start: addDaysISO(end, -(days - 1)), end });
   }));
-  root.querySelectorAll('[data-more]').forEach(btn => btn.addEventListener('click', event => {
-    event.stopPropagation();
-    const menu = root.querySelector(`[data-more-menu="${btn.dataset.more}"]`);
-    const open = menu.classList.contains('hidden');
-    root.querySelectorAll('.ind-more-menu').forEach(m => m.classList.add('hidden'));
-    menu.classList.toggle('hidden', !open);
-    btn.setAttribute('aria-expanded', String(open));
-  }));
-  root.querySelectorAll('[data-export]').forEach(btn => btn.addEventListener('click', () => {
-    exportChart(btn.dataset.chart, btn.dataset.export);
-    root.querySelectorAll('.ind-more-menu').forEach(m => m.classList.add('hidden'));
-  }));
-  ctx.scope.on(document, 'click', () => root.querySelectorAll('.ind-more-menu').forEach(m => m.classList.add('hidden')));
+  root.querySelectorAll('[data-export]').forEach(btn => btn.addEventListener('click', () => exportChart(btn.dataset.chart, btn.dataset.export)));
   root.querySelectorAll('[data-info]').forEach(btn => btn.addEventListener('click', () => {
     const box = $('ovInfoBox');
     const text = INFO_TEXT[btn.dataset.info];

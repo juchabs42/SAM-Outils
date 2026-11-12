@@ -311,7 +311,7 @@
 .tool-tavelure .tav-level.is-none { padding: 0; color: var(--sam-muted); font-weight: 500; }
 
 /* Graphique jour par jour */
-.tool-tavelure .tav-chart { min-height: 380px; }
+.tool-tavelure .tav-chart { min-height: 560px; }
 
 /* Historique : 10 derniers relevés + « Voir plus » */
 .tool-tavelure .tav-more { display: flex; justify-content: center; width: min(100%, 320px); margin: 14px auto 0; }
@@ -319,7 +319,18 @@
 .tool-tavelure .tav-admin-hint { margin: 0 0 10px; color: var(--sam-muted); font-size: .84rem; }
 
 @media (max-width: 720px) {
-  .tool-tavelure .tav-chart { min-height: 320px; }
+  .tool-tavelure .tav-chart { min-height: 440px; }
   .tool-tavelure .tav-scale-title { flex-basis: 100%; }
 }
 .tool-tavelure .mobile-card-table td .tav-level { justify-self: start; width: max-content; }
+
+/* Projections : CSV dans l'en-tête, période juste au-dessus du graphique */
+.tool-tavelure .tav-head-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
+.tool-tavelure .tav-period { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 18px; margin: 0 0 12px; }
+.tool-tavelure .tav-filters { min-width: 0; }
+.tool-tavelure .tav-j0 { margin: 0 0 12px; color: var(--sam-muted); font-size: .86rem; }
+.tool-tavelure .tav-j0:empty { display: none; }
+@media (max-width: 720px) {
+  .tool-tavelure .tav-period { display: grid; }
+  .tool-tavelure .tav-j0 { margin: 0; }
+}

@@ -98,8 +98,8 @@ const TEMPLATE = `  <div class="tool-main">
         <label>Unité<select id="unitFilter"><option value="raw">Captures brutes</option><option value="per_day">Captures / jour</option></select></label>
         <label>Courbe<select id="processingFilter"><option value="observed">Valeurs observées</option><option value="weekly">Total hebdomadaire</option><option value="smoothed">Lissage</option></select></label>
         <div class="export-actions">
-          <button id="exportExcelButton" class="secondary-button export-button" type="button"><span class="export-icon" aria-hidden="true">⤓</span>Exporter Excel</button>
-          <button id="exportSvgButton" class="secondary-button export-button" type="button"><span class="export-icon" aria-hidden="true">⤓</span>Exporter SVG</button>
+          <button id="exportExcelButton" class="sam-csv-button" type="button" title="Télécharger les relevés de la campagne (CSV)">CSV</button>
+          <button id="exportSvgButton" class="sam-csv-button" type="button" title="Télécharger le graphique (SVG)">SVG</button>
         </div>
       </div>
     </section>
@@ -2508,11 +2508,10 @@ async function saveSpecies(event){
 }
 
 // -----------------------------------------------------------------------------
-// Export Excel — structure proche du classeur de Bertrand
+// Export CSV — structure proche du classeur de Bertrand (relevés, totaux
+// hebdomadaires, pièges et interventions, les uns sous les autres)
 // -----------------------------------------------------------------------------
-async function exportExcel() {
-  try { await ctx.vendor.xlsx(); } catch { /* message ci-dessous */ }
-  if (!window.XLSX) return setMessage($("globalMessage"), "Bibliothèque d’export Excel indisponible.", true);
+function exportExcel() {
   const campaign = campaignById($("campaignFilter").value); if (!campaign) return;
   const traps = trapsForCampaign(campaign.id); const observations = activeRows(data.observations).filter(o=>o.campaign_id===campaign.id).sort((a,b)=>a.observed_on.localeCompare(b.observed_on));
   const dates=[...new Set(observations.map(o=>o.observed_on))].sort();
@@ -2537,10 +2536,17 @@ async function exportExcel() {
   rows.push([]);rows.push(["TOTAUX HEBDOMADAIRES ET LISSAGE"]);rows.push(["Parcelle / piège","Mesure",...weeks.map(w=>fmtDate(w))]);
   traps.forEach(trap=>{const parcel=parcelById(trap.parcel_id);const trapObs=observations.filter(o=>o.trap_id===trap.id);const totals=weeks.map(w=>trapObs.filter(o=>bucketStart(o.observed_on,anchor)===w).reduce((sum,o)=>sum+Number(o.total_captured||0),0));const smooth=totals.map((v,i)=>i===0?v:(v+totals[i-1])/2);rows.push([`${parcelLabel(parcel)} — ${trap.code}`,"Total hebdomadaire",...totals]);rows.push(["","Total lissé",...smooth]);if(campaign.protocol_type==="aphid")campaignSpecies(campaign.id).forEach(s=>{const weekly=weeks.map(w=>trapObs.filter(o=>bucketStart(o.observed_on,anchor)===w).reduce((sum,o)=>{const d=data.details.find(x=>x.observation_id===o.id&&x.species_id===s.id);return sum+(d?Number(d.males||0)+Number(d.females||0)+Number(d.undetermined||0):0);},0));const sm=weekly.map((v,i)=>i===0?v:(v+weekly[i-1])/2);rows.push(["",s.scientific_name,...weekly]);rows.push(["",`${s.scientific_name} lissé`,...sm]);});rows.push([]);});
 
-  const wb=XLSX.utils.book_new();const ws=XLSX.utils.aoa_to_sheet(rows);ws["!cols"]=[{wch:34},{wch:30},...dates.map(()=>({wch:12}))];XLSX.utils.book_append_sheet(wb,ws,(campaign.name||"Campagne").slice(0,31));
-  const trapRows=[["Campagne","Parcelle","Variété","Piège","Type","Rang","Position","Installation","Attractif","Commentaire"],...traps.map(t=>{const p=parcelById(t.parcel_id);return[campaign.name,p?.name||"",p?.variety||"",t.code,t.trap_type||"",t.row_ref||"",t.position||"",t.installed_on||"",t.attractant||"",t.comment||""];})];XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(trapRows),"Pièges");
-  const interventionRows=[["Date","Heure","Type","Produit","Dose","Cible","Parcelles","Commentaire"],...activeRows(data.interventions).filter(i=>i.campaign_id===campaign.id).map(i=>{const ids=data.interventionParcels.filter(l=>l.intervention_id===i.id).map(l=>l.parcel_id);return[i.intervention_date,i.intervention_time||"",i.intervention_type,i.product||"",i.dose||"",i.target||"",ids.map(id=>parcelById(id)?.name).filter(Boolean).join(", "),i.comment||""];})];XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(interventionRows),"Interventions");
-  XLSX.writeFile(wb,`SAM_Piegeage_${slugify(campaign.name)}_${campaign.year}.xlsx`);
+  rows.push([]);rows.push(["PIÈGES"]);
+  rows.push(["Campagne","Parcelle","Variété","Piège","Type","Rang","Position","Installation","Attractif","Commentaire"]);
+  traps.forEach(t=>{const p=parcelById(t.parcel_id);rows.push([campaign.name,p?.name||"",p?.variety||"",t.code,t.trap_type||"",t.row_ref||"",t.position||"",t.installed_on||"",t.attractant||"",t.comment||""]);});
+  rows.push([]);rows.push(["INTERVENTIONS"]);
+  rows.push(["Date","Heure","Type","Produit","Dose","Cible","Parcelles","Commentaire"]);
+  activeRows(data.interventions).filter(i=>i.campaign_id===campaign.id).forEach(i=>{const ids=data.interventionParcels.filter(l=>l.intervention_id===i.id).map(l=>l.parcel_id);rows.push([i.intervention_date,i.intervention_time||"",i.intervention_type,i.product||"",i.dose||"",i.target||"",ids.map(id=>parcelById(id)?.name).filter(Boolean).join(", "),i.comment||""]);});
+
+  const cell=value=>{if(value===null||value===undefined)return"";const text=typeof value==="number"?String(Math.round(value*100)/100).replace(".",","):String(value);return `"${text.replaceAll('"','""')}"`;};
+  const csv=rows.map(row=>row.map(cell).join(";")).join("\r\n");
+  const url=URL.createObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}));
+  const link=document.createElement("a");link.href=url;link.download=`SAM_Piegeage_${slugify(campaign.name)}_${campaign.year}.csv`;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 
 

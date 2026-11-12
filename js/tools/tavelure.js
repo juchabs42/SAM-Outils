@@ -36,16 +36,16 @@ const TEMPLATE = `
   <section class="panel">
     <div class="panel-header">
       <div><p class="panel-kicker">Spores + pluie</p><h3>Projections observées jour par jour</h3></div>
-      <span id="monitoringStatusBadge" class="status-pill">Suivi en cours</span>
-    </div>
-    <div class="controls">
-      <p class="period-reminder" id="periodReminder"></p>
-      <div class="actions">
-        <button id="resetFiltersButton" class="secondary-button" type="button">Toute la saison</button>
-        <button id="exportGraphButton" class="primary-button" type="button">Exporter en CSV</button>
+      <div class="tav-head-actions">
+        <span id="monitoringStatusBadge" class="status-pill">Suivi en cours</span>
+        <button id="exportGraphButton" class="sam-csv-button" type="button" title="Télécharger les relevés de la période (CSV)">CSV</button>
       </div>
     </div>
     <div class="tav-scale" id="tavScale" aria-label="Échelle d’intensité des projections"></div>
+    <div class="tav-period">
+      <div id="tavFilters" class="tav-filters"></div>
+      <p class="tav-j0" id="periodReminder"></p>
+    </div>
     <div id="j0Warning" class="warning-box hidden">Le graphique démarrera dès qu’une date sera renseignée pour le stade 7.</div>
     <div id="emptyGraphMessage" class="empty-state hidden">Aucun épisode enregistré sur la période sélectionnée.</div>
     <div class="chart-wrap tav-chart"><canvas id="sporeChart" aria-label="Pluie et spores projetées par jour, avec le cumul des spores"></canvas></div>
@@ -178,7 +178,8 @@ export async function mount(root, ctx) {
 
   const getJ0 = () => stageDates.get(7) || null;
 
-  ctx.filters({ location: false, period: true });
+  // Période choisie juste au-dessus du graphique des projections.
+  ctx.filters({ location: false, period: true, mountIn: byId('tavFilters') });
   ctx.period.configure({
     presets: [
       { id: 'season', label: 'Saison (depuis J0)', resolve: today => ({ start: getJ0() || `${today.slice(0, 4)}-01-01`, end: today }) },
@@ -418,7 +419,7 @@ export async function mount(root, ctx) {
         datasets: [
           { type: 'bar', label: 'Pluviométrie (mm)', data: days.map(d => d.rain), backgroundColor: COLORS.rain, borderRadius: 3, maxBarThickness: 22, yAxisID: 'yRain', order: 2 },
           { type: 'bar', label: 'Spores projetées', data: days.map(d => d.spores), backgroundColor: COLORS.spores, borderRadius: 3, maxBarThickness: 22, yAxisID: 'ySpores', order: 2 },
-          { type: 'line', label: 'Cumul des spores projetées', data: days.map(d => d.cumul), borderColor: COLORS.cumul, backgroundColor: COLORS.cumul, borderWidth: 2.2, pointRadius: days.map(d => (d.spores ? (narrow ? 2 : 3) : 0)), pointHoverRadius: 4, tension: 0.15, stepped: false, yAxisID: 'yCumul', order: 1 }
+          { type: 'line', label: 'Cumul des spores projetées', data: days.map(d => d.cumul), borderColor: COLORS.cumul, backgroundColor: COLORS.cumul, borderWidth: 2.2, pointRadius: days.map(d => (d.spores ? (narrow ? 2 : 3) : 0)), pointHoverRadius: 4, cubicInterpolationMode: 'monotone', yAxisID: 'yCumul', order: 1 }
         ]
       },
       options: {
@@ -490,9 +491,8 @@ export async function mount(root, ctx) {
   }
 
   function renderPeriodReminder() {
-    const p = ctx.period.get();
     const j0 = getJ0();
-    byId('periodReminder').innerHTML = `Période affichée : <strong>${p?.display || '—'}</strong>${j0 ? ` · J0 : ${formatDate(j0)}` : ''}`;
+    byId('periodReminder').innerHTML = j0 ? `J0 (stade 7) : <strong>${formatDate(j0)}</strong>` : '';
   }
 
   function refreshDataViews() {
@@ -564,7 +564,6 @@ export async function mount(root, ctx) {
   byId('episodeForm').addEventListener('submit', addEpisode);
   byId('saveMonitoringButton').addEventListener('click', saveMonitoring);
   byId('saveScaleButton').addEventListener('click', saveScale);
-  byId('resetFiltersButton').addEventListener('click', () => { ctx.period.set({ preset: 'season' }); refreshDataViews(); });
   byId('exportGraphButton').addEventListener('click', exportCsv);
   byId('historyMoreButton').addEventListener('click', () => { showAllHistory = !showAllHistory; renderHistory(); });
   byId('historyTableBody').addEventListener('click', event => {

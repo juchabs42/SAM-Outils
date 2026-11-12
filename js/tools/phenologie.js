@@ -184,7 +184,7 @@ const TEMPLATE = `<div class="tool-main">
             <p class="eyebrow">Chronologie</p>
             <h2 id="stage-history-title">Dates de passage des stades</h2>
           </div>
-          <button id="exportStagesBtn" class="secondary" type="button">Exporter le tableau des stades</button>
+          <button id="exportStagesBtn" class="sam-csv-button" type="button" title="Télécharger le tableau des stades (CSV)">CSV</button>
         </div>
         <p class="hint">Les dates observées sont prioritaires. Les autres dates sont estimées à partir du cumul de degrés-jours recalé.</p>
         <div id="stageHistoryStatus" class="loading-state">Aucune donnée chargée.</div>
