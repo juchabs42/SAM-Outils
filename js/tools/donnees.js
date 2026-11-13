@@ -4,6 +4,7 @@
 import { presets } from '../core/period.js';
 import { icons } from '../core/icons.js';
 import { stationState } from '../core/stations.js';
+import { createZoomGroup, enableChartZoom, resetZoomGroup, timeAxis, timeTicksPlugin } from '../core/charts.js';
 import { todayISO, addDaysISO, formatNumber, formatDayMonth, formatDateShort, escapeHtml, storage } from '../core/util.js';
 
 const TZ = 'Europe/Paris';
@@ -157,25 +158,6 @@ const csvNumber = value => (value === null || value === undefined ? '' : String(
 const avg = list => (list?.length ? list.reduce((a, b) => a + b, 0) / list.length : null);
 const safeName = text => String(text || 'station').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/^_+|_+$/g, '');
 
-// ---------------------------------------------------------------------------
-// Zoom au glisser : rectangle de sélection dessiné par-dessus le graphique
-// ---------------------------------------------------------------------------
-const selectionPlugin = {
-  id: 'samZoomSelection',
-  afterDraw(chart) {
-    const sel = chart.$samSel;
-    if (!sel || !chart.chartArea) return;
-    const { ctx, chartArea } = chart;
-    ctx.save();
-    ctx.fillStyle = 'rgba(197, 1, 26, .10)';
-    ctx.strokeStyle = 'rgba(197, 1, 26, .55)';
-    ctx.lineWidth = 1;
-    ctx.fillRect(sel.x0, chartArea.top, sel.x1 - sel.x0, chartArea.bottom - chartArea.top);
-    ctx.strokeRect(sel.x0 + 0.5, chartArea.top + 0.5, sel.x1 - sel.x0 - 1, chartArea.bottom - chartArea.top - 1);
-    ctx.restore();
-  }
-};
-
 export async function mount(root, ctx) {
   root.innerHTML = TEMPLATE;
   const $ = id => root.querySelector(`#${id}`);
@@ -190,7 +172,8 @@ export async function mount(root, ctx) {
   let mode = storage.get('donnees.mode', 'hourly') === 'daily' ? 'daily' : 'hourly';
   let rimproModel = 'venturia';
   let dailyExpanded = false;
-  const zoom = { range: null, stack: [] };
+  // Zoom partagé par tous les graphiques de l'onglet (même période affichée).
+  const zoom = createZoomGroup(range => updateZoomBar(range));
 
   // Période et pas de temps à côté, sous les onglets.
   ctx.filters({ location: false, period: true, mountIn: $('donFilters') });
@@ -462,7 +445,9 @@ export async function mount(root, ctx) {
   // -------------------------------------------------------------------------
   const narrow = () => window.innerWidth < 600;
 
-  function chartConfig(spec, labels) {
+  function chartConfig(spec, base) {
+    const labels = base.labels;
+    const time = { items: base.items, mode: base.mode };
     const datasets = spec.datasets.map(ds => {
       if (ds.type === 'bar') {
         return { type: 'bar', label: ds.label, data: ds.data, backgroundColor: ds.color, borderRadius: 2, maxBarThickness: 14, yAxisID: 'y' };
@@ -474,12 +459,8 @@ export async function mount(root, ctx) {
       };
     });
     const scales = {
-      x: {
-        grid: { display: false },
-        ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: narrow() ? 4 : 12, color: '#4b5058' },
-        min: zoom.range ? zoom.range.min : undefined,
-        max: zoom.range ? zoom.range.max : undefined
-      },
+      // Petits traits au-dessus des dates : heures, jours, semaines selon la place disponible.
+      x: timeAxis(time, { fontSize: narrow() ? 11 : 12 }),
       y: {
         beginAtZero: spec.kind === 'rain',
         min: spec.yMin, max: spec.yMax,
@@ -503,102 +484,25 @@ export async function mount(root, ctx) {
           tooltip: {
             padding: 10, cornerRadius: 8,
             callbacks: { label: c => `${c.dataset.label} : ${c.parsed.y === null ? '—' : formatNumber(c.parsed.y, spec.unit === '%' || spec.unit === 'cb' ? 0 : 1)}` }
-          }
+          },
+          samTimeTicks: time
         },
         scales
       },
-      plugins: [selectionPlugin]
+      plugins: [timeTicksPlugin]
     };
   }
 
-  function attachZoom(chart) {
-    const canvas = chart.canvas;
-    canvas.style.touchAction = 'pan-y';
-    let drag = null;
-    let lastTap = 0;
-    const position = event => {
-      const rect = canvas.getBoundingClientRect();
-      return { x: event.clientX - rect.left, y: event.clientY - rect.top };
-    };
-    const inArea = p => {
-      const a = chart.chartArea;
-      return a && p.x >= a.left && p.x <= a.right && p.y >= a.top && p.y <= a.bottom;
-    };
-    const indexAt = x => {
-      const n = chart.data.labels.length - 1;
-      return Math.max(0, Math.min(n, Math.round(chart.scales.x.getValueForPixel(x))));
-    };
-    const clear = () => { chart.$samSel = null; chart.draw(); };
-    const down = event => {
-      if (event.button !== 0) return;
-      const p = position(event);
-      if (!inArea(p)) return;
-      drag = { x0: p.x, x1: p.x, id: event.pointerId, type: event.pointerType, moved: false };
-      if (event.pointerType === 'mouse') canvas.setPointerCapture?.(event.pointerId);
-    };
-    const move = event => {
-      if (!drag || event.pointerId !== drag.id) return;
-      const a = chart.chartArea;
-      drag.x1 = Math.max(a.left, Math.min(a.right, position(event).x));
-      if (Math.abs(drag.x1 - drag.x0) > 6) {
-        drag.moved = true;
-        chart.$samSel = { x0: Math.min(drag.x0, drag.x1), x1: Math.max(drag.x0, drag.x1) };
-        chart.draw();
-      }
-    };
-    const up = event => {
-      if (!drag || event.pointerId !== drag.id) return;
-      const d = drag;
-      drag = null;
-      clear();
-      if (d.moved && Math.abs(d.x1 - d.x0) > 12) {
-        const from = indexAt(Math.min(d.x0, d.x1));
-        const to = indexAt(Math.max(d.x0, d.x1));
-        if (to > from) zoomTo(from, to);
-        return;
-      }
-      if (d.type !== 'mouse') {
-        const now = Date.now();
-        if (now - lastTap < 350) { lastTap = 0; zoomOut(); } else lastTap = now;
-      }
-    };
-    const cancel = () => { if (drag) { drag = null; clear(); } };
-    const dbl = event => { event.preventDefault(); zoomOut(); };
-    canvas.addEventListener('pointerdown', down);
-    canvas.addEventListener('pointermove', move);
-    canvas.addEventListener('pointerup', up);
-    canvas.addEventListener('pointercancel', cancel);
-    canvas.addEventListener('dblclick', dbl);
-  }
-
-  function applyZoom() {
-    charts.forEach(({ chart }) => {
-      chart.options.scales.x.min = zoom.range ? zoom.range.min : undefined;
-      chart.options.scales.x.max = zoom.range ? zoom.range.max : undefined;
-      chart.update('none');
-    });
-    $('donZoomReset').classList.toggle('hidden', !zoom.range);
+  function updateZoomBar(range) {
+    $('donZoomReset').classList.toggle('hidden', !range);
     const labels = [...charts.values()][0]?.chart.data.labels || [];
-    $('donZoomHint').textContent = zoom.range
-      ? `Zoom : ${labels[zoom.range.min] || ''} → ${labels[zoom.range.max] || ''} · double-clic pour revenir en arrière`
+    $('donZoomHint').textContent = range
+      ? `Zoom : ${labels[range.min] || ''} → ${labels[range.max] || ''} · double-clic pour revenir en arrière`
       : 'Glissez sur un graphique pour zoomer · double-clic pour revenir en arrière';
   }
 
-  function zoomTo(min, max) {
-    zoom.stack.push(zoom.range);
-    zoom.range = { min, max };
-    applyZoom();
-  }
-
-  function zoomOut() {
-    if (!zoom.range) return;
-    zoom.range = zoom.stack.pop() || null;
-    applyZoom();
-  }
-
   function resetZoom() {
-    zoom.range = null;
-    zoom.stack = [];
+    resetZoomGroup(zoom, { apply: false });
   }
 
   function destroyCharts() {
@@ -620,11 +524,11 @@ export async function mount(root, ctx) {
     </article>`).join('');
     specs.forEach(spec => {
       const canvas = container.querySelector(`[data-chart="${spec.id}"] canvas`);
-      const chart = new window.Chart(canvas, chartConfig(spec, base.labels));
-      attachZoom(chart);
+      const chart = new window.Chart(canvas, chartConfig(spec, base));
+      enableChartZoom(chart, { group: zoom, resetButton: false });
       charts.set(spec.id, { chart, spec, base });
     });
-    applyZoom();
+    updateZoomBar(zoom.range);
   }
 
   function download(name, lines) {
@@ -922,7 +826,7 @@ export async function mount(root, ctx) {
     resetZoom();
     renderView();
   }));
-  $('donZoomReset').addEventListener('click', () => { resetZoom(); applyZoom(); });
+  $('donZoomReset').addEventListener('click', () => resetZoomGroup(zoom));
   root.addEventListener('click', event => {
     const csv = event.target.closest('[data-csv]');
     if (csv) exportChart(csv.dataset.csv);

@@ -2,6 +2,7 @@
 // Reprise de l'appli « SAM Irrigation » : le lieu et la période se choisissent dans la carte
 // « Période de programmation ».
 import { presets } from '../core/period.js';
+import { enableChartZoom } from '../core/charts.js';
 import { todayISO, addDaysISO, diffDaysISO, storage } from '../core/util.js';
 
 const TEMPLATE = `
@@ -489,6 +490,7 @@ export async function mount(root, ctx) {
       if (!Number.isInteger(index) || index <= 0) return;
       const { ctx: c, chartArea, scales } = chart;
       const x = (scales.x.getPixelForValue(index - 1) + scales.x.getPixelForValue(index)) / 2;
+      if (x < chartArea.left - 1 || x > chartArea.right + 1) return; // hors de la partie zoomée
       c.save();
       c.strokeStyle = '#D30D43';
       c.lineWidth = 1.5;
@@ -543,12 +545,13 @@ export async function mount(root, ctx) {
           }
         },
         scales: {
-          x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, color: item => (rows[item.index]?.date > today ? '#D30D43' : '#57494d') } },
+          x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, color: item => (rows[item.tick?.value ?? item.index]?.date > today ? '#D30D43' : '#57494d') } },
           y: { beginAtZero: true, grid: { color: '#efe7e9' }, border: { display: false }, title: { display: true, text: 'mm / jour', color: '#75686c' }, ticks: { color: '#75686c' } }
         }
       },
       plugins: [forecastLinePlugin]
     });
+    enableChartZoom(weatherChart); // glisser = zoom, double-clic = retour
   }
 
   // Événements

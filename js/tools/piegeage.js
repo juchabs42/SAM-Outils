@@ -2,6 +2,7 @@
 // Reprise de l'appli « SAM Piégeage » V2 : lecture libre, saisie réservée aux
 // administrateurs SAM (qui peuvent aussi modifier les saisies des autres).
 import { fetchAllRows, addDaysISO } from '../core/util.js';
+import { enableChartZoom } from '../core/charts.js';
 
 const TEMPLATE = `  <div class="tool-main">
     <section class="hero panel">
@@ -1118,6 +1119,7 @@ const eventLinePlugin = {
       if (index < 0) return;
 
       const px = x.getPixelForValue(index);
+      if (px < x.left - 1 || px > x.right + 1) return; // hors de la partie zoomée
 
       ctx.save();
       ctx.strokeStyle = "#c99214";
@@ -1298,6 +1300,7 @@ function renderChart() {
       scales: { y: { beginAtZero: true, title: { display: true, text: unitLabel } }, x: { ticks: { maxRotation: 45, minRotation: 0 } } }
     }
   });
+  enableChartZoom(chart); // glisser = zoom, double-clic = retour
 
   const legend = $("eventLegend");
   legend.innerHTML = "";

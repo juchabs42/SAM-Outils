@@ -2,6 +2,7 @@
 // historiques (prévisions, déficit climatique, DPV, indice de contrainte).
 import { icons } from '../core/icons.js';
 import { presets } from '../core/period.js';
+import { enableChartZoom } from '../core/charts.js';
 import { todayISO, addDaysISO, diffDaysISO, formatNumber, formatDateShort, formatDayMonth, escapeHtml, storage } from '../core/util.js';
 
 const TEMPLATE = `
@@ -521,6 +522,7 @@ export async function mount(root, ctx) {
     const canvas = $(canvasId);
     if (!canvas) return null;
     charts[name] = new Chart(canvas, config);
+    enableChartZoom(charts[name]); // glisser = zoom, double-clic = retour
     return charts[name];
   }
 
@@ -716,10 +718,11 @@ export async function mount(root, ctx) {
       grid: { display: false },
       ticks: {
         maxRotation: 0, autoSkip: false,
-        callback(_value, index) {
-          const row = rows[index];
+        // value = rang de l'heure dans la série (index = rang parmi les graduations visibles, zoom compris)
+        callback(value, index) {
+          const row = rows[value];
           if (!row) return '';
-          const previous = index > 0 ? rows[index - 1].date : '';
+          const previous = value > 0 ? rows[value - 1].date : '';
           return index === 0 || row.date !== previous ? formatDayMonth(row.date) : '';
         }
       }

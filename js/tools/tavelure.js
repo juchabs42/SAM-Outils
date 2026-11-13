@@ -2,10 +2,11 @@
 // Lecture par tous les comptes ; saisie réservée aux administrateurs SAM (équipe SudExpé).
 import { presets } from '../core/period.js';
 import { todayISO, addDaysISO } from '../core/util.js';
+import { enableChartZoom } from '../core/charts.js';
 
 const DEFAULT_SCALE = { moyen: 500, fort: 2000 };
 const HISTORY_LIMIT = 10;
-const COLORS = { rain: '#3b8ad9', spores: '#8b5a2b', cumul: '#3d2410', noData: 'rgba(107, 113, 123, .075)' };
+const COLORS = { rain: '#3b8ad9', spores: '#8b5a2b', cumul: '#3d2410', moyen: '#a86d00', fort: '#a8141f' };
 
 const TEMPLATE = `
 <div class="tool-main">
@@ -48,6 +49,7 @@ const TEMPLATE = `
     </div>
     <div id="j0Warning" class="warning-box hidden">Le graphique démarrera dès qu’une date sera renseignée pour le stade 7.</div>
     <div id="emptyGraphMessage" class="empty-state hidden">Aucun épisode enregistré sur la période sélectionnée.</div>
+    <p class="tav-axes-note" id="tavAxesNote">Pluie en mm à gauche · spores par jour à droite.<span id="tavSwipeHint" class="hidden"> Glissez le graphique pour parcourir la période.</span></p>
     <div class="chart-wrap tav-chart"><canvas id="sporeChart" aria-label="Pluie et spores projetées par jour, avec le cumul des spores"></canvas></div>
   </section>
 
@@ -126,39 +128,64 @@ const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, c => ({ '&':
 const hasValue = value => value !== null && value !== undefined && value !== '';
 
 // Fond grisé des jours sans relevé + seuils de l'échelle sur l'axe des spores.
-const tavelureBackground = {
-  id: 'samTavelureBackground',
+// Seuils d'intensité sur l'axe des spores : traits pointillés sous les barres,
+// étiquettes lisibles (pastille blanche, texte gras) au-dessus.
+function pill(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
+  else ctx.rect(x, y, w, h);
+}
+function visibleThresholds(chart, options) {
+  const y = chart.scales.ySpores;
+  if (!chart.chartArea || !y || !options?.thresholds) return [];
+  return options.thresholds
+    .filter(t => t.value >= y.min && t.value <= y.max)
+    .map(t => ({ ...t, py: y.getPixelForValue(t.value) }));
+}
+const tavelureThresholds = {
+  id: 'samTavelureThresholds',
   beforeDatasetsDraw(chart, _args, options) {
-    const { ctx, chartArea, scales } = chart;
-    if (!chartArea || !options) return;
-    const x = scales.x;
-    const n = chart.data.labels.length;
-    const step = n > 1 ? Math.abs(x.getPixelForValue(1) - x.getPixelForValue(0)) : chartArea.right - chartArea.left;
+    const { ctx, chartArea: a } = chart;
+    const items = visibleThresholds(chart, options);
+    if (!items.length) return;
     ctx.save();
-    ctx.fillStyle = COLORS.noData;
-    (options.noData || []).forEach((empty, i) => {
-      if (!empty || i < x.min || i > x.max) return;
-      const center = x.getPixelForValue(i);
-      ctx.fillRect(Math.max(chartArea.left, center - step / 2), chartArea.top, Math.min(step, chartArea.right - chartArea.left), chartArea.bottom - chartArea.top);
+    ctx.setLineDash([7, 5]);
+    ctx.lineWidth = 1.8;
+    items.forEach(t => {
+      ctx.strokeStyle = t.color;
+      ctx.beginPath();
+      ctx.moveTo(a.left, t.py);
+      ctx.lineTo(a.right, t.py);
+      ctx.stroke();
     });
-    const y = scales.ySpores;
-    if (y && options.thresholds) {
-      ctx.setLineDash([5, 4]);
-      ctx.lineWidth = 1;
-      ctx.font = '600 11px Inter, system-ui, sans-serif';
-      options.thresholds.forEach(t => {
-        if (t.value > y.max) return;
-        const py = y.getPixelForValue(t.value);
-        ctx.strokeStyle = t.color;
-        ctx.beginPath();
-        ctx.moveTo(chartArea.left, py);
-        ctx.lineTo(chartArea.right, py);
-        ctx.stroke();
-        ctx.fillStyle = t.color;
-        ctx.textAlign = 'right';
-        ctx.fillText(t.label, chartArea.right - 4, py - 4);
-      });
-    }
+    ctx.restore();
+  },
+  afterDatasetsDraw(chart, _args, options) {
+    const { ctx, chartArea: a } = chart;
+    const items = visibleThresholds(chart, options);
+    if (!items.length) return;
+    const narrow = a.right - a.left < 520;
+    const h = narrow ? 22 : 25;
+    ctx.save();
+    ctx.font = `700 ${narrow ? 12 : 13.5}px Inter, system-ui, sans-serif`;
+    ctx.textBaseline = 'middle';
+    items.forEach((t, i) => {
+      const text = narrow ? t.short : t.label;
+      const w = ctx.measureText(text).width + 16;
+      const x = a.right - w - 6;
+      const other = items[i === 0 ? 1 : 0];
+      // Au-dessus du trait ; dessous si l'autre seuil est trop proche ou s'il n'y a pas la place.
+      let top = t.py - h - 5;
+      if (top < a.top + 2 || (other && other.value > t.value && Math.abs(other.py - t.py) < h + 10)) top = t.py + 5;
+      pill(ctx, x, top, w, h, h / 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, .94)';
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = t.color;
+      ctx.stroke();
+      ctx.fillStyle = t.color;
+      ctx.fillText(text, x + 8, top + h / 2 + 0.5);
+    });
     ctx.restore();
   }
 };
@@ -410,6 +437,7 @@ export async function mount(root, ctx) {
     byId('j0Warning').classList.toggle('hidden', Boolean(j0));
     byId('emptyGraphMessage').classList.toggle('hidden', !j0 || rows.length > 0);
     canvas.parentElement.classList.toggle('hidden', empty);
+    byId('tavAxesNote').classList.toggle('hidden', empty);
     if (chart) { chart.destroy(); chart = null; }
     if (empty) return;
     const narrow = window.innerWidth <= 720;
@@ -443,23 +471,29 @@ export async function mount(root, ctx) {
               footer: items => (days[items[0]?.dataIndex]?.recorded === false ? 'Pas de relevé ce jour' : '')
             }
           },
-          samTavelureBackground: {
-            noData: days.map(d => !d.recorded),
+          samTavelureThresholds: {
             thresholds: [
-              { value: scale.moyen, label: `moyenne ≥ ${formatNumber(scale.moyen, 0)}`, color: 'rgba(176, 116, 0, .85)' },
-              { value: scale.fort, label: `forte ≥ ${formatNumber(scale.fort, 0)}`, color: 'rgba(170, 24, 36, .85)' }
+              { value: scale.moyen, label: `Seuil moyen · ${formatNumber(scale.moyen, 0)} spores`, short: `Seuil moyen ${formatNumber(scale.moyen, 0)}`, color: COLORS.moyen },
+              { value: scale.fort, label: `Seuil fort · ${formatNumber(scale.fort, 0)} spores`, short: `Seuil fort ${formatNumber(scale.fort, 0)}`, color: COLORS.fort }
             ]
           }
         },
         scales: {
           x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: narrow ? 6 : 16, font: { size: narrow ? 10 : 12 } } },
-          yRain: { beginAtZero: true, position: 'left', title: { display: true, text: 'Pluie (mm)', color: COLORS.rain, font: { weight: '600' } }, ticks: { color: COLORS.rain }, grid: { color: 'rgba(102, 113, 124, 0.13)' } },
+          yRain: { beginAtZero: true, position: 'left', title: { display: !narrow, text: 'Pluie (mm)', color: COLORS.rain, font: { weight: '600' } }, ticks: { color: COLORS.rain }, grid: { color: 'rgba(102, 113, 124, 0.13)' } },
           ySpores: { beginAtZero: true, position: 'right', title: { display: !narrow, text: 'Spores par jour', color: COLORS.spores, font: { weight: '600' } }, ticks: { color: COLORS.spores }, grid: { drawOnChartArea: false } },
-          yCumul: { beginAtZero: true, position: 'right', title: { display: !narrow, text: 'Cumul des spores', color: COLORS.cumul, font: { weight: '600' } }, ticks: { color: COLORS.cumul, display: !narrow }, grid: { drawOnChartArea: false } }
+          // Téléphone : axe du cumul masqué (la courbe reste tracée) pour élargir le graphique.
+          yCumul: { display: !narrow, beginAtZero: true, position: 'right', title: { display: !narrow, text: 'Cumul des spores', color: COLORS.cumul, font: { weight: '600' } }, ticks: { color: COLORS.cumul }, grid: { drawOnChartArea: false } }
         }
       },
-      plugins: [tavelureBackground]
+      plugins: [tavelureThresholds]
     });
+    // Zoom au glisser, double-clic = retour ; sur téléphone, le graphique s'ouvre sur les
+    // dernières semaines (jours plus larges) et se parcourt au doigt.
+    const zoom = enableChartZoom(chart, { phoneWindow: { pxPerPoint: 12, min: 14 } });
+    const syncSwipeHint = range => byId('tavSwipeHint').classList.toggle('hidden', !range);
+    zoom.group.onChange = syncSwipeHint;
+    syncSwipeHint(zoom.group.range);
   }
 
   // -------------------------------------------------------------------------

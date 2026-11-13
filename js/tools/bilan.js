@@ -4,6 +4,7 @@
 // version peuvent être importées dans le compte.
 // Nappe (Hub'Eau) et remontées capillaires retirées de cette version.
 import { storage } from '../core/util.js';
+import { enableChartZoom } from '../core/charts.js';
 
 const TEMPLATE = `    <div class="tool-main" id="appArea">
       <section id="storageBanner" class="card storage-banner hidden"></section>
@@ -52,6 +53,7 @@ const TEMPLATE = `    <div class="tool-main" id="appArea">
               </div>
             </div>
             <div id="bilanFilters" class="bilan-filters"></div>
+            <p class="chart-axes-note">Stock en mm à gauche · apports du jour (pluie, irrigation) en mm à droite.<span id="chartSwipeHint" class="hidden"> Glissez le graphique pour parcourir la période.</span></p>
             <div class="chart-wrap"><canvas id="waterChart"></canvas></div>
           </section>
 
@@ -296,7 +298,6 @@ const state = {
   editingIrrigation: null,
   selectedIrrigationIds: new Set(),
   irrigationImportRows: [],
-  chartSelection: null,
   showAllIrrigations: false
 };
 
@@ -1262,6 +1263,7 @@ const todayLinePlugin = {
     if (idx < 0) return;
     const x = chart.scales.x.getPixelForValue(idx);
     const { ctx, chartArea } = chart;
+    if (x < chartArea.left - 1 || x > chartArea.right + 1) return; // hors de la partie zoomée
     ctx.save();
     ctx.beginPath();
     ctx.setLineDash([5,5]);
@@ -1274,24 +1276,6 @@ const todayLinePlugin = {
   }
 };
 
-const selectionOverlayPlugin = {
-  id: 'selectionOverlay',
-  afterDraw(chart) {
-    const sel = state.chartSelection;
-    if (!sel || sel.chart !== chart || sel.startX == null || sel.currentX == null) return;
-    const { ctx, chartArea } = chart;
-    const left = clamp(Math.min(sel.startX, sel.currentX), chartArea.left, chartArea.right);
-    const right = clamp(Math.max(sel.startX, sel.currentX), chartArea.left, chartArea.right);
-    ctx.save();
-    ctx.fillStyle = 'rgba(215,0,47,.10)';
-    ctx.fillRect(left, chartArea.top, right-left, chartArea.bottom-chartArea.top);
-    ctx.strokeStyle = 'rgba(215,0,47,.55)';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(left, chartArea.top, right-left, chartArea.bottom-chartArea.top);
-    ctx.restore();
-  }
-};
-
 function renderChart(rows) {
   const labels = rows.map(r => fmtShort(r.date));
   const firstForecast = rows.findIndex(r => r.forecast);
@@ -1300,6 +1284,9 @@ function renderChart(rows) {
   const ru = Number(state.activeParcel.ru_mm);
   const rfu = Number(state.activeParcel.rfu_mm);
   const maxFlux = Math.max(5, ...rows.flatMap(r => [r.rainEffective, r.irrigation]));
+  // Téléphone : titres des axes verticaux remplacés par une ligne au-dessus du graphique,
+  // pour laisser toute la largeur aux courbes.
+  const narrow = window.innerWidth < 600;
 
   const datasets = [
     { type:'line', label: 'Stock observé', data: observed, yAxisID:'yStock', borderColor:'#22272b', backgroundColor:'#22272b', borderWidth:3, pointRadius:1.2, tension:.22, spanGaps:false },
@@ -1315,13 +1302,13 @@ function renderChart(rows) {
   const config = {
     type:'line',
     data:{ labels, datasets },
-    plugins:[backgroundZonesPlugin, todayLinePlugin, selectionOverlayPlugin],
+    plugins:[backgroundZonesPlugin, todayLinePlugin],
     options:{
       responsive:true,
       maintainAspectRatio:false,
       interaction:{ mode:'index', intersect:false },
       plugins:{
-        legend:{ position:'bottom', labels:{ usePointStyle:false, boxWidth:28, boxHeight:3, padding:16 } },
+        legend:{ position:'bottom', labels:{ usePointStyle:false, boxWidth:narrow ? 18 : 28, boxHeight:3, padding:narrow ? 10 : 16, font:{ size:narrow ? 11 : 12 } } },
         tooltip:{
           backgroundColor:'rgba(255,255,255,.97)',
           titleColor:'#1f2328',
@@ -1355,66 +1342,21 @@ function renderChart(rows) {
         }
       },
       scales:{
-        x:{ stacked:false, ticks:{ maxRotation:0, autoSkip:true, maxTicksLimit:window.innerWidth < 700 ? 8 : 18 }, grid:{ display:false } },
-        yStock:{ position:'left', min:0, suggestedMax:ru * 1.08, title:{ display:true, text:'Stock (mm)' } },
-        yFlux:{ position:'right', min:0, max:maxFlux * 1.15, reverse:true, title:{ display:true, text:'Apports journaliers (mm)' }, grid:{ drawOnChartArea:false } }
+        x:{ stacked:false, ticks:{ maxRotation:0, autoSkip:true, maxTicksLimit:narrow ? 6 : window.innerWidth < 700 ? 8 : 18, font:{ size:narrow ? 11 : 12 } }, grid:{ display:false } },
+        yStock:{ position:'left', min:0, suggestedMax:ru * 1.08, title:{ display:!narrow, text:'Stock (mm)' }, ticks:{ font:{ size:narrow ? 11 : 12 } } },
+        yFlux:{ position:'right', min:0, max:maxFlux * 1.15, reverse:true, title:{ display:!narrow, text:'Apports journaliers (mm)' }, ticks:{ font:{ size:narrow ? 11 : 12 } }, grid:{ drawOnChartArea:false } }
       }
     }
   };
 
   if (state.chart) state.chart.destroy();
   state.chart = new window.Chart($('waterChart'), config);
-  attachChartZoom(state.chart);
-}
-
-function attachChartZoom(chart) {
-  const canvas = chart.canvas;
-  canvas.style.touchAction = 'pan-y';
-  let pointerId = null;
-  let startX = null;
-
-  canvas.onpointerdown = e => {
-    if (e.button !== undefined && e.button !== 0) return;
-    const rect = canvas.getBoundingClientRect();
-    pointerId = e.pointerId;
-    startX = e.clientX - rect.left;
-    state.chartSelection = { chart, startX, currentX:startX };
-    try { canvas.setPointerCapture(pointerId); } catch (_) {}
-  };
-
-  canvas.onpointermove = e => {
-    if (pointerId === null || e.pointerId !== pointerId) return;
-    const rect = canvas.getBoundingClientRect();
-    state.chartSelection.currentX = e.clientX - rect.left;
-    chart.draw();
-  };
-
-  canvas.onpointerup = e => {
-    if (pointerId === null || e.pointerId !== pointerId) return;
-    const rect = canvas.getBoundingClientRect();
-    const endX = e.clientX - rect.left;
-    const distance = Math.abs(endX - startX);
-    if (distance > 18) {
-      const xScale = chart.scales.x;
-      const leftPx = clamp(Math.min(startX,endX), xScale.left, xScale.right);
-      const rightPx = clamp(Math.max(startX,endX), xScale.left, xScale.right);
-      const startIndex = Math.max(0, Math.floor(xScale.getValueForPixel(leftPx)));
-      const endIndex = Math.min(chart.data.labels.length - 1, Math.ceil(xScale.getValueForPixel(rightPx)));
-      chart.options.scales.x.min = chart.data.labels[startIndex];
-      chart.options.scales.x.max = chart.data.labels[endIndex];
-      chart.update();
-    }
-    pointerId = null;
-    startX = null;
-    state.chartSelection = null;
-    chart.draw();
-  };
-
-  canvas.ondblclick = () => {
-    delete chart.options.scales.x.min;
-    delete chart.options.scales.x.max;
-    chart.update();
-  };
+  // Zoom au glisser, double-clic = retour ; sur téléphone, le graphique s'ouvre sur les
+  // dernières semaines (jours plus larges) et se parcourt au doigt.
+  const zoom = enableChartZoom(state.chart, { phoneWindow: { pxPerPoint: 12, min: 14 } });
+  const syncSwipeHint = range => $('chartSwipeHint')?.classList.toggle('hidden', !range);
+  zoom.group.onChange = syncSwipeHint;
+  syncSwipeHint(zoom.group.range);
 }
 
 function updateRainCorrectionInfo() {

@@ -165,8 +165,9 @@ export async function mount(root, ctx) {
     map = L.map($('carteMap'), { zoomControl: true, scrollWheelZoom: true, maxZoom: MAX_ZOOM });
     const plan = L.tileLayer(IGN('GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2'), { maxZoom: MAX_ZOOM, attribution: '© IGN – Géoplateforme' });
     const ortho = L.tileLayer(IGN('ORTHOIMAGERY.ORTHOPHOTOS'), { maxZoom: MAX_ZOOM, attribution: '© IGN – Géoplateforme' });
-    plan.addTo(map);
-    L.control.layers({ 'Plan IGN': plan, 'Photos aériennes IGN': ortho }, null, { collapsed: true }).addTo(map);
+    // Vue satellite (photos aériennes IGN) par défaut ; le plan reste disponible.
+    ortho.addTo(map);
+    L.control.layers({ 'Photos aériennes IGN': ortho, 'Plan IGN': plan }, null, { collapsed: true }).addTo(map);
     L.control.scale({ imperial: false }).addTo(map);
     layer = L.layerGroup().addTo(map);
 

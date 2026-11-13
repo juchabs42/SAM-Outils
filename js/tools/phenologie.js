@@ -2,6 +2,7 @@
 // Reprise de l'appli « SAM Phénologie » : lecture libre, saisie réservée aux administrateurs.
 // Ajouts : saison choisie avec la période, lieu par défaut des nouvelles parcelles.
 import { todayISO, addDaysISO, fetchAllRows } from '../core/util.js';
+import { bindZoomGestures, zoomResetButton } from '../core/charts.js';
 
 const TEMPLATE = `<div class="tool-main">
     <section class="sam-team-note" aria-label="Suivi phénologique SudExpé">
@@ -318,6 +319,10 @@ let latestAnalysis = null;
 let deferredPrompt = null;
 let pendingLocation = null;
 let chartHoverState = null;
+// Zoom du graphique des degrés-jours : glisser = zoom sur les dates, double-clic = retour.
+let phenoZoom = { range: null, stack: [] };
+let phenoSelection = null;
+let phenoZoomButton = null;
 let supabaseClient = null;
 let supabaseConfigured = false;
 let isAdmin = false;
@@ -391,7 +396,68 @@ function bindEvents() {
   els.gddChart.addEventListener('pointermove', handleChartPointer);
   els.gddChart.addEventListener('pointerdown', handleChartPointer);
   els.gddChart.addEventListener('pointerleave', hideChartTooltip);
+  resetPhenoZoom();
+  phenoZoomButton = zoomResetButton(els.gddChart, () => { resetPhenoZoom(); drawChart(); });
+  bindZoomGestures(els.gddChart, phenoZoomGestures());
   ctx.scope.on(window, 'resize', () => drawChart());
+}
+
+function resetPhenoZoom() {
+  phenoZoom = { range: null, stack: [] };
+  phenoSelection = null;
+}
+
+const shiftISO = (iso, days) => isoDate(addDays(new Date(iso + 'T12:00:00'), days));
+
+// Date (jour du graphique) sous une abscisse en px.
+function phenoDateAt(px) {
+  const h = chartHoverState;
+  if (!h) return null;
+  const offset = Math.round(((px - h.margin.left) / h.chartW) * h.dayCount);
+  return shiftISO(h.data[0].date, Math.max(0, Math.min(h.dayCount, offset)));
+}
+
+function phenoZoomGestures() {
+  return {
+    area() {
+      const h = chartHoverState;
+      return h ? { left: h.margin.left, right: h.width - h.margin.right, top: h.margin.top, bottom: h.height - h.margin.bottom } : null;
+    },
+    zoomed: () => Boolean(phenoZoom.range),
+    preview(sel) { phenoSelection = sel; drawChart(); },
+    select(x0, x1) {
+      const start = phenoDateAt(x0);
+      const end = phenoDateAt(x1);
+      if (!start || !end || diffDays(start, end) < 2) return;
+      phenoZoom.stack.push(phenoZoom.range);
+      phenoZoom.range = { start, end };
+      hideChartTooltip();
+      drawChart();
+    },
+    back() {
+      if (!phenoZoom.range) return false;
+      phenoZoom.range = phenoZoom.stack.pop() || null;
+      drawChart();
+      return true;
+    },
+    pan(dx, starting, startRange) {
+      if (!phenoZoom.range || !chartHoverState || !latestAnalysis?.timeline.length) return null;
+      if (starting) return { ...phenoZoom.range };
+      const all = latestAnalysis.timeline;
+      const first = all[0].date;
+      const last = all[all.length - 1].date;
+      const width = diffDays(startRange.start, startRange.end);
+      const pxPerDay = chartHoverState.chartW / Math.max(1, chartHoverState.dayCount);
+      let start = shiftISO(startRange.start, -Math.round(dx / pxPerDay));
+      if (start < first) start = first;
+      if (diffDays(start, last) < width) start = shiftISO(last, -width);
+      if (start === phenoZoom.range.start) return null;
+      phenoZoom.range = { start, end: shiftISO(start, width) };
+      hideChartTooltip();
+      drawChart();
+      return null;
+    }
+  };
 }
 
 function toggleInfo(id) {
@@ -1190,27 +1256,38 @@ function drawChart() {
     return;
   }
 
-  const data = latestAnalysis.timeline;
+  const all = latestAnalysis.timeline;
+  let data = all;
+  if (phenoZoom.range) {
+    data = all.filter(d => d.date >= phenoZoom.range.start && d.date <= phenoZoom.range.end);
+    if (data.length < 2) { resetPhenoZoom(); data = all; }
+  }
+  const zoomed = Boolean(phenoZoom.range);
+  if (phenoZoomButton) phenoZoomButton[zoomed ? 'show' : 'hide']();
   const margin = { top: 18, right: 18, bottom: 42, left: 52 };
   const chartW = width - margin.left - margin.right;
   const chartH = height - margin.top - margin.bottom;
-  // Axe des degrés-jours gradué tous les 50 DJ.
+  // Axe des degrés-jours gradué tous les 50 DJ (resserré sur la partie affichée quand on zoome).
   const GDD_STEP = 50;
-  const maxGdd = Math.max(GDD_STEP, Math.ceil(Math.max(latestAnalysis.lastStage.gdd, ...data.map(d => d.cumulative)) * 1.04 / GDD_STEP) * GDD_STEP);
+  const values = data.map(d => d.cumulative);
+  const minGdd = zoomed ? Math.max(0, Math.floor(Math.min(...values) / GDD_STEP) * GDD_STEP) : 0;
+  const maxGdd = zoomed
+    ? Math.max(minGdd + GDD_STEP, Math.ceil(Math.max(...values) * 1.02 / GDD_STEP) * GDD_STEP)
+    : Math.max(GDD_STEP, Math.ceil(Math.max(latestAnalysis.lastStage.gdd, ...values) * 1.04 / GDD_STEP) * GDD_STEP);
   const startDate = new Date(data[0].date + 'T00:00:00');
   const endDate = new Date(data[data.length - 1].date + 'T00:00:00');
   const span = Math.max(1, endDate - startDate);
   const x = date => margin.left + ((new Date(date + 'T00:00:00') - startDate) / span) * chartW;
-  const y = val => margin.top + chartH - (val / maxGdd) * chartH;
+  const y = val => margin.top + chartH - ((val - minGdd) / (maxGdd - minGdd)) * chartH;
 
   // Graduations horizontales : un trait tous les 50 DJ, libellé tous les 50 DJ
   // (ou tous les 100 / 200 DJ si le graphique est trop petit pour tout écrire).
-  const pxPerStep = chartH * GDD_STEP / maxGdd;
+  const pxPerStep = chartH * GDD_STEP / (maxGdd - minGdd);
   const labelEvery = pxPerStep >= 15 ? 1 : pxPerStep >= 8 ? 2 : 4;
   ctx.lineWidth = 1;
   ctx.font = '12px sans-serif';
   ctx.textAlign = 'right';
-  for (let gv = 0, i = 0; gv <= maxGdd; gv += GDD_STEP, i++) {
+  for (let gv = minGdd, i = 0; gv <= maxGdd; gv += GDD_STEP, i++) {
     const yy = Math.round(y(gv)) + 0.5;
     ctx.strokeStyle = i % labelEvery === 0 ? '#e2e2e2' : '#f2f2f2';
     ctx.beginPath(); ctx.moveTo(margin.left, yy); ctx.lineTo(width - margin.right, yy); ctx.stroke();
@@ -1240,6 +1317,7 @@ function drawChart() {
   });
 
   latestAnalysis.stages.forEach(stage => {
+    if (stage.gdd < minGdd || stage.gdd > maxGdd) return;
     const yy = y(stage.gdd);
     ctx.strokeStyle = 'rgba(227, 8, 77, 0.18)';
     ctx.beginPath(); ctx.moveTo(margin.left, yy); ctx.lineTo(width - margin.right, yy); ctx.stroke();
@@ -1250,8 +1328,13 @@ function drawChart() {
 
   const hist = data.filter(d => d.type === 'history');
   const forecast = data.filter(d => d.type === 'forecast');
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(margin.left, margin.top - 2, chartW, chartH + 4);
+  ctx.clip();
   drawLine(ctx, hist, x, y, '#E3084D', false);
   drawLine(ctx, forecast, x, y, '#978AA1', true, hist[hist.length - 1]);
+  ctx.restore();
 
   ctx.fillStyle = '#666';
   ctx.font = '12px sans-serif';
@@ -1269,7 +1352,7 @@ function drawChart() {
   latestAnalysis.observations.forEach(obs => {
     const point = data.find(d => d.date === obs.date);
     const target = observationTargetGdd(obs, latestAnalysis.stages);
-    if (!point || target == null) return;
+    if (!point || target == null || target < minGdd || target > maxGdd) return;
     ctx.save();
     ctx.fillStyle = '#D31145';
     ctx.strokeStyle = '#FFFFFF';
@@ -1283,7 +1366,16 @@ function drawChart() {
     ctx.restore();
   });
 
-  chartHoverState = { data, x, y, width, height, margin, analysis: latestAnalysis };
+  if (phenoSelection) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(197, 1, 26, .10)';
+    ctx.strokeStyle = 'rgba(197, 1, 26, .55)';
+    ctx.fillRect(phenoSelection.x0, margin.top, phenoSelection.x1 - phenoSelection.x0, chartH);
+    ctx.strokeRect(phenoSelection.x0 + 0.5, margin.top + 0.5, phenoSelection.x1 - phenoSelection.x0 - 1, chartH - 1);
+    ctx.restore();
+  }
+
+  chartHoverState = { data, x, y, width, height, margin, chartW, dayCount, analysis: latestAnalysis };
 }
 
 function drawLine(ctx, points, xFn, yFn, color, dashed, prepend) {

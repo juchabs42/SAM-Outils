@@ -334,3 +334,11 @@
   .tool-tavelure .tav-period { display: grid; }
   .tool-tavelure .tav-j0 { margin: 0; }
 }
+
+/* Téléphone : graphique élargi (marges du panneau récupérées), unités indiquées au-dessus */
+.tool-tavelure .tav-axes-note { display: none; }
+.tool-tavelure .tav-axes-note .hidden, .tool-tavelure .tav-axes-note.hidden { display: none !important; }
+@media (max-width: 720px) {
+  .tool-tavelure .tav-axes-note { display: block; margin: 0 0 6px; color: var(--sam-muted); font-size: .8rem; line-height: 1.35; }
+  .tool-tavelure .tav-chart { margin-left: -8px; margin-right: -8px; }
+}

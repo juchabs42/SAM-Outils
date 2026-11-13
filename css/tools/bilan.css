@@ -208,3 +208,11 @@
 .tool-bilan .list-more.hidden { display: none; }
 /* Le choix de la période s'ouvre par-dessus la carte du graphique. */
 .tool-bilan .chart-card { overflow: visible; }
+
+/* Téléphone : graphique élargi (marges de la carte récupérées), unités indiquées au-dessus */
+.tool-bilan .chart-axes-note { display: none; }
+.tool-bilan .chart-axes-note .hidden { display: none !important; }
+@media (max-width: 600px) {
+  .tool-bilan .chart-axes-note { display: block; margin: 10px 0 0; color: var(--sam-muted); font-size: .8rem; line-height: 1.35; }
+  .tool-bilan .chart-card .chart-wrap { margin-left: -8px; margin-right: -8px; }
+}
