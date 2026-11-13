@@ -131,32 +131,8 @@
   .tool-carte .carte-tip { max-width: min(300px, calc(100vw - 60px)); }
 }
 
-/* Choix de l'affichage : équipement RIMpro / transmission */
-.tool-carte .carte-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 2px 2px 12px; }
-.tool-carte .carte-switch { display: inline-flex; padding: 3px; border: 1px solid var(--sam-line); border-radius: 999px; background: var(--sam-bg-soft, #f4f5f7); }
-.tool-carte .carte-switch button {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 36px;
-  padding: 0 14px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--sam-ink-2);
-  font: inherit;
-  font-size: .88rem;
-  font-weight: 650;
-  cursor: pointer;
-}
-.tool-carte .carte-switch button.is-active { background: #fff; color: var(--sam-ink); box-shadow: 0 1px 4px rgba(17, 24, 39, .16); }
-.tool-carte .carte-switch-r { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: #6d28d9; color: #fff; font-size: .7rem; font-weight: 800; }
-.tool-carte .carte-switch-dot { width: 12px; height: 12px; border-radius: 50%; background: #2e7d32; box-shadow: 0 0 0 2px #fff, 0 0 0 3px rgba(0, 0, 0, .15); }
-.tool-carte .carte-head-note { flex: 1 1 260px; margin: 0; color: var(--sam-muted); font-size: .86rem; }
-
-/* Vue RIMpro */
+/* Stations équipées RIMpro : pastille violette marquée « R » */
 .tool-carte .is-rimpro { --dot: #6d28d9; }
-.tool-carte .is-norimpro { --dot: #ffffff; }
 .tool-carte .carte-dot.is-rimpro {
   display: grid;
   place-items: center;
@@ -164,20 +140,10 @@
   font: 800 12px/1 var(--sam-font);
   box-shadow: 0 1px 6px rgba(0, 0, 0, .45);
 }
-.tool-carte .carte-dot.is-norimpro { border: 2.5px solid #6b7280; background: #fff; }
-.tool-carte .carte-dot.is-rimpro-pending { display: grid; place-items: center; border: 2px dashed #6d28d9; color: #6d28d9; font: 800 10px/1 var(--sam-font); }
-.tool-carte .carte-legend i.is-rimpro { display: inline-grid; place-items: center; width: 17px; height: 17px; color: #fff; font-size: .62rem; font-weight: 800; font-style: normal; }
-.tool-carte .carte-legend i.is-norimpro,
-.tool-carte .carte-tip-list i.is-norimpro { background: #fff; border: 2px solid #6b7280; box-shadow: none; }
-.tool-carte .carte-tip-list i.is-rimpro { background: #6d28d9; }
+.tool-carte .carte-dot.is-rimpro-pending { border: 2px dashed #6d28d9; background: rgba(255, 255, 255, .95); color: #6d28d9; font-size: 10px; }
+.tool-carte .carte-legend i.is-rimpro,
+.tool-carte .carte-tip-list i.is-rimpro { display: inline-grid; place-items: center; color: #fff; font-size: .6rem; font-weight: 800; font-style: normal; }
+.tool-carte .carte-legend i.is-rimpro { width: 17px; height: 17px; }
 .tool-carte .carte-tip-rimpro { display: inline-flex; align-items: center; gap: 7px; color: var(--sam-muted); font-size: .82rem; }
 .tool-carte .carte-tip-rimpro.is-on { color: #5b21b6; font-weight: 650; }
 .tool-carte .carte-tip-rimpro b { display: inline-grid; place-items: center; flex: none; width: 16px; height: 16px; border-radius: 50%; background: #6d28d9; color: #fff; font-size: .62rem; }
-
-@media (max-width: 480px) {
-  .tool-carte .carte-switch-long { display: none; }
-}
-@media (max-width: 760px) {
-  .tool-carte .carte-switch { width: 100%; }
-  .tool-carte .carte-switch button { flex: 1; justify-content: center; padding: 0 8px; font-size: .84rem; }
-}

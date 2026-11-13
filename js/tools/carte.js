@@ -2,7 +2,8 @@
 // Survol : dernières mesures de la station ; clic : ouverture de ses données (onglet Données).
 // Les stations trop proches pour être distinguées à l'échelle affichée sont regroupées
 // en une pastille numérotée ; un clic sur la pastille zoome sur le groupe.
-// Deux vues : « RIMpro » (stations équipées ou non, pour les producteurs) et « Transmission ».
+// Une seule vue : « R » violet = station équipée RIMpro ; sinon vert = transmet,
+// blanc en pointillés = pas encore installée (orange/gris : en retard, muette).
 import { stationState } from '../core/stations.js';
 import { formatNumber, formatDateShort, escapeHtml, storage } from '../core/util.js';
 
@@ -23,15 +24,11 @@ const STATES = [
   { key: 'never', label: 'Aucune donnée', color: '#b8bcc4' },
   { key: 'pending', label: 'Pas encore installée', color: '#cdd1d7' }
 ];
-const STATE_ORDER = Object.fromEntries(STATES.map((s, i) => [s.key, i]));
-// Vue RIMpro : équipée (modèles tavelure et carpocapse) ou non.
-const RIMPRO = [
-  { key: 'rimpro', label: 'Équipée RIMpro', color: '#6d28d9' },
-  { key: 'norimpro', label: 'Sans RIMpro', color: '#b8bcc4' },
-  { key: 'pending', label: 'Pas encore installée', color: '#e4e6ea' }
-];
+// Catégories de la carte (légende, couleurs des pastilles et des groupes)
+const KINDS = [{ key: 'rimpro', label: 'Équipée RIMpro', color: '#6d28d9' }, ...STATES];
+const KIND_ORDER = Object.fromEntries(KINDS.map((k, i) => [k.key, i]));
 const hasRimpro = station => Boolean(String(station.rimpro_id || '').trim());
-const rimproKey = station => (stationState(station).key === 'pending' ? 'pending' : hasRimpro(station) ? 'rimpro' : 'norimpro');
+const kindOf = station => (hasRimpro(station) ? 'rimpro' : stationState(station).key);
 
 const IGN = layer => `https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${layer}&STYLE=normal&FORMAT=${layer.startsWith('ORTHO') ? 'image/jpeg' : 'image/png'}&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`;
 
@@ -39,13 +36,6 @@ const TEMPLATE = `
 <div class="carte-main">
   <div class="carte-setup hidden" id="carteSetup"></div>
   <section class="carte-card">
-    <div class="carte-head">
-      <div class="carte-switch" role="group" aria-label="Affichage des stations">
-        <button type="button" data-mode="rimpro"><span class="carte-switch-r">R</span><span class="carte-switch-long">Équipement </span>RIMpro</button>
-        <button type="button" data-mode="etat"><span class="carte-switch-dot"></span>Transmission</button>
-      </div>
-      <p class="carte-head-note" id="carteHeadNote"></p>
-    </div>
     <div class="carte-map" id="carteMap" aria-label="Carte des stations du réseau SAM"></div>
     <div class="carte-foot">
       <div class="carte-legend" id="carteLegend" aria-label="Légende"></div>
@@ -83,12 +73,10 @@ export async function mount(root, ctx) {
   let layer = null;
   let latest = new Map();
   let latestLoaded = false;
-  // Vue choisie (gardée sur cet appareil) ; RIMpro par défaut pour les producteurs.
-  let mode = storage.get('carte.vue') === 'etat' ? 'etat' : 'rimpro';
 
   $('carteHint').textContent = canHover
-    ? 'Survolez une station pour voir ses dernières mesures, cliquez dessus pour ouvrir ses données. Les pastilles numérotées regroupent des stations voisines : cliquez pour zoomer.'
-    : 'Touchez une station pour voir ses dernières mesures et ouvrir ses données. Les pastilles numérotées regroupent des stations voisines : touchez pour zoomer.';
+    ? 'Survolez une station pour voir ses dernières mesures, cliquez dessus pour ouvrir ses données ; une station R ouvre directement ses modèles RIMpro (tavelure, carpocapse). Les pastilles numérotées regroupent des stations voisines : cliquez pour zoomer.'
+    : 'Touchez une station pour voir ses dernières mesures et ouvrir ses données ; une station R ouvre directement ses modèles RIMpro (tavelure, carpocapse). Les pastilles numérotées regroupent des stations voisines : touchez pour zoomer.';
 
   // ---------------------------------------------------------------------------
   // Données
@@ -122,13 +110,14 @@ export async function mount(root, ctx) {
   // (pour compléter sa fiche).
   const canOpen = station => station.installee !== false || ctx.isAdmin;
 
-  // rimpro : ouvre directement l'onglet « Maladies / ravageurs » (modèles RIMpro) des Données.
+  // Station RIMpro : ouvre directement l'onglet « Maladies / ravageurs » (modèles RIMpro)
+  // des Données ; les autres stations n'ont pas cet onglet utile, on évite donc d'y arriver.
   function openStation(id, { rimpro = false } = {}) {
     if (rimpro) storage.set('donnees.view', 'maladies');
+    else if (storage.get('donnees.view') === 'maladies') storage.set('donnees.view', 'meteo');
     store.select(id);
     ctx.navigate('donnees');
   }
-  const opensRimpro = station => mode === 'rimpro' && hasRimpro(station);
 
   // ---------------------------------------------------------------------------
   // Contenu des infobulles
@@ -164,16 +153,12 @@ export async function mount(root, ctx) {
     const shown = items.slice(0, 8);
     const rows = shown.map(s => {
       const state = stationState(s);
-      if (mode === 'rimpro') {
-        const key = rimproKey(s);
-        const detail = key === 'rimpro' ? 'RIMpro' : key === 'pending' ? 'À venir' : 'Sans RIMpro';
-        return `<li><i class="is-${key}"></i><span>${escapeHtml(s.nom)}</span><em>${detail}</em></li>`;
-      }
       const t = latest.get(s.id)?.t;
       const detail = state.key === 'ok' || state.key === 'late'
         ? (t === null || t === undefined ? state.label : `${formatNumber(t, 1)} °C`)
         : state.label;
-      return `<li><i class="is-${state.key}"></i><span>${escapeHtml(s.nom)}</span><em>${escapeHtml(detail)}</em></li>`;
+      const kind = kindOf(s);
+      return `<li><i class="is-${kind}">${kind === 'rimpro' ? 'R' : ''}</i><span>${escapeHtml(s.nom)}</span><em>${escapeHtml(detail)}</em></li>`;
     }).join('');
     const more = items.length > shown.length ? `<li class="carte-tip-more">+ ${items.length - shown.length} autre${items.length - shown.length > 1 ? 's' : ''}</li>` : '';
     return `<div class="carte-tip is-group">
@@ -254,8 +239,7 @@ export async function mount(root, ctx) {
   // Regroupe les stations qui se chevauchent à l'échelle affichée (en pixels).
   function clusters(stations) {
     const zoom = map.getZoom();
-    const rank = s => (mode === 'rimpro' ? ['rimpro', 'norimpro', 'pending'].indexOf(rimproKey(s)) : STATE_ORDER[stationState(s).key]);
-    const sorted = [...stations].sort((a, b) => (rank(a) - rank(b)) || a.id.localeCompare(b.id));
+    const sorted = [...stations].sort((a, b) => (KIND_ORDER[kindOf(a)] - KIND_ORDER[kindOf(b)]) || a.id.localeCompare(b.id));
     const groups = [];
     sorted.forEach(station => {
       const point = map.project([station.latitude, station.longitude], zoom);
@@ -270,13 +254,14 @@ export async function mount(root, ctx) {
     const L = window.L;
     const state = stationState(station);
     const clickable = canOpen(station);
-    const rimpro = opensRimpro(station);
+    const rimpro = hasRimpro(station);
     const pending = state.key === 'pending';
-    // Vue RIMpro : pastille violette marquée « R » pour les stations équipées, blanche sinon.
-    const dot = mode === 'rimpro'
-      ? `<span class="carte-dot is-${rimproKey(station)}${pending && hasRimpro(station) ? ' is-rimpro-pending' : ''}">${hasRimpro(station) ? 'R' : ''}</span>`
+    // « R » violet : station équipée RIMpro (pointillés si elle n'est pas encore installée) ;
+    // sinon couleur de transmission (vert = transmet, blanc en pointillés = pas encore installée).
+    const dot = rimpro
+      ? `<span class="carte-dot is-rimpro${pending ? ' is-rimpro-pending' : ''}">R</span>`
       : `<span class="carte-dot is-${state.key}"></span>`;
-    const size = mode === 'rimpro' && hasRimpro(station) && !pending ? DOT + 4 : DOT;
+    const size = rimpro && !pending ? DOT + 4 : DOT;
     const marker = L.marker([station.latitude, station.longitude], {
       icon: L.divIcon({
         className: `carte-marker${clickable ? '' : ' is-static'}`,
@@ -288,7 +273,7 @@ export async function mount(root, ctx) {
       keyboard: true,
       riseOnHover: true,
       riseOffset: 5000,
-      zIndexOffset: pending ? 0 : mode === 'rimpro' && hasRimpro(station) ? 1500 : 1000
+      zIndexOffset: pending ? 0 : rimpro ? 1500 : 1000
     });
     const cta = rimpro ? 'Cliquer pour voir les modèles RIMpro →' : 'Cliquer pour voir les données →';
     const open = () => openStation(station.id, { rimpro });
@@ -317,10 +302,8 @@ export async function mount(root, ctx) {
     const lng = items.reduce((sum, s) => sum + s.longitude, 0) / items.length;
     // Anneau coloré : part de chaque état dans le groupe
     let at = 0;
-    const defs = mode === 'rimpro' ? RIMPRO : STATES;
-    const keyOf = mode === 'rimpro' ? rimproKey : s => stationState(s).key;
-    const stops = defs.map(def => {
-      const share = items.filter(s => keyOf(s) === def.key).length / items.length * 100;
+    const stops = KINDS.map(def => {
+      const share = items.filter(s => kindOf(s) === def.key).length / items.length * 100;
       if (!share) return null;
       const stop = `${def.color} ${at.toFixed(2)}% ${(at + share).toFixed(2)}%`;
       at += share;
@@ -351,26 +334,9 @@ export async function mount(root, ctx) {
 
   function renderLegend(stations) {
     const counts = {};
-    const defs = mode === 'rimpro' ? RIMPRO : STATES;
-    const keyOf = mode === 'rimpro' ? rimproKey : s => stationState(s).key;
-    stations.forEach(s => { const key = keyOf(s); counts[key] = (counts[key] || 0) + 1; });
-    $('carteLegend').innerHTML = defs.filter(def => counts[def.key])
+    stations.forEach(s => { const key = kindOf(s); counts[key] = (counts[key] || 0) + 1; });
+    $('carteLegend').innerHTML = KINDS.filter(def => counts[def.key])
       .map(def => `<span><i class="is-${def.key}">${def.key === 'rimpro' ? 'R' : ''}</i>${escapeHtml(def.label)} <b>${counts[def.key]}</b></span>`).join('');
-    const equipped = stations.filter(s => hasRimpro(s) && stationState(s).key !== 'pending').length;
-    $('carteHeadNote').textContent = mode === 'rimpro'
-      ? `${equipped} station${equipped > 1 ? 's' : ''} équipée${equipped > 1 ? 's' : ''} RIMpro : modèles de risque tavelure et carpocapse, consultables en cliquant sur la station.`
-      : 'État de la transmission des mesures de chaque station.';
-  }
-
-  function setMode(next) {
-    mode = next === 'etat' ? 'etat' : 'rimpro';
-    storage.set('carte.vue', mode);
-    root.querySelectorAll('.carte-switch button').forEach(b => {
-      const on = b.dataset.mode === mode;
-      b.classList.toggle('is-active', on);
-      b.setAttribute('aria-pressed', String(on));
-    });
-    renderMarkers();
   }
 
   function renderMarkers() {
@@ -410,8 +376,6 @@ export async function mount(root, ctx) {
     if (!ctx.scope.disposed) renderMarkers();
   }
 
-  root.querySelectorAll('.carte-switch button').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
-  setMode(mode);
   ctx.onAuthChange(() => renderMarkers());
   ctx.scope.interval(() => { if (document.visibilityState === 'visible') refresh(true); }, 10 * 60 * 1000);
 

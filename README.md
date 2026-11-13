@@ -15,16 +15,20 @@ Application unique qui regroupe les six outils SAM et les données des stations 
 | Piégeage | Supabase | lecture, saisie administrateur |
 | Administration (comptes, stations, capteurs) | Supabase + fonction `sam-admin` | administrateurs uniquement |
 
-Site statique (HTML, CSS, JavaScript sans compilation), publié avec GitHub Pages.
+Site statique (HTML, CSS, JavaScript sans compilation), publié par Cloudflare
+(`https://sam.juju-chabat42.workers.dev`, redéployé à chaque poussée sur `main`) et par GitHub Pages
+(`https://juchabs42.github.io/SAM-Outils/`).
 
 ## Mise en route Supabase (une seule fois)
 
 1. **SQL Editor** : coller et exécuter `supabase/schema.sql`, `supabase/stations.sql`
    puis `supabase/connexion_comptes.sql` (lecture réservée aux comptes, profils, RIMpro).
 2. **Authentication → Sign In / Providers** : désactiver *Allow new users to sign up*.
-3. **Authentication → URL Configuration** : *Site URL* = adresse du site
-   (`https://juchabs42.github.io/SAM-Outils/`), ajoutée aussi aux *Redirect URLs*
-   (liens « mot de passe oublié » et invitations).
+3. **Authentication → URL Configuration** : *Site URL* = adresse principale du site
+   (aujourd'hui `https://sam.juju-chabat42.workers.dev`, plus tard le nom de domaine définitif).
+   Ajouter dans *Redirect URLs* chaque adresse où le site est publié, suivie de `/**`
+   (ex. `https://sam.juju-chabat42.workers.dev/**`) : c'est là que mènent les liens
+   d'invitation et de « mot de passe oublié ».
 4. **Authentication → Users → Add user** : *Send invitation* (la personne choisit son
    mot de passe) ou *Create new user* avec *Auto Confirm User* coché.
 5. Administrateurs (saisie) : ajouter l'adresse dans la table `sam_admins`
@@ -37,8 +41,16 @@ Site statique (HTML, CSS, JavaScript sans compilation), publié avec GitHub Page
    que l'appelant est dans `sam_admins`). La clé d'administration lui est fournie par Supabase.
 7. **Mails (invitations, mot de passe oublié)** : le service d'envoi par défaut de Supabase
    n'écrit qu'aux membres de l'équipe du projet, avec un très petit nombre de mails par heure.
-   Pour inviter des producteurs : *Authentication → Emails → SMTP Settings* avec un vrai
-   serveur d'envoi (compte mail du domaine, Brevo…).
+   Pour inviter des producteurs :
+   - *Authentication → Emails → SMTP Settings* : activer *Enable custom SMTP* et saisir
+     l'adresse d'envoi (ex. `no-reply@sudagrometeo.fr`), le nom (« SAM Outils »), puis
+     serveur, port, identifiant et mot de passe SMTP fournis par la messagerie du domaine
+     ou par Brevo (offre gratuite) ;
+   - *Authentication → Rate Limits* : relever le nombre de mails par heure (ex. 30) ;
+   - *Authentication → Emails → Templates* : coller le contenu de
+     `supabase/emails/invitation.html` dans *Invite user* et de
+     `supabase/emails/mot-de-passe.html` dans *Reset password* (sujets indiqués en tête
+     de chaque fichier).
 
 La clé utilisée dans `config.js` est la clé *publishable* : elle est faite pour être publique.
 Ne jamais y mettre la clé *secret* / *service_role*.
@@ -54,6 +66,7 @@ js/core/*.js          connexion, profil, stations, lieux, période, navigation
 js/tools/*.js         un module par outil
 supabase/*.sql        tables, droits et règles d'accès, collecte des stations, imports
 supabase/functions/   fonction « sam-admin » (gestion des comptes depuis l'onglet Administration)
+supabase/emails/      modèles des mails d'invitation et de mot de passe (en français)
 _headers              en-têtes de sécurité (hébergement Cloudflare)
 service-worker.js     fonctionnement hors connexion
 ```
@@ -61,5 +74,21 @@ service-worker.js     fonctionnement hors connexion
 ## Mise à jour
 
 Les fichiers sont servis tels quels : une modification poussée sur `main` est en ligne
-après le redéploiement GitHub Pages (1 à 2 minutes). Le service worker recharge
+après le redéploiement Cloudflare et GitHub Pages (1 à 2 minutes). Le service worker recharge
 automatiquement la dernière version quand l'appareil est connecté.
+
+## Nom de domaine
+
+SudExpé est titulaire de `sudagrometeo.fr` (le `.com` n'est pas à SudExpé). Pour garder le site
+actuel du domaine, publier les outils sur un sous-domaine, par exemple `outils.sudagrometeo.fr` :
+
+- **Avec le Worker actuel** : le domaine doit être géré par Cloudflare (ajouter `sudagrometeo.fr`
+  au compte Cloudflare, vérifier que les enregistrements DNS importés sont complets, en
+  particulier la messagerie MX/SPF, puis remplacer les serveurs de noms chez le bureau
+  d'enregistrement). Ensuite : *Workers & Pages → sam → Settings → Domains & Routes →
+  Add → Custom Domain* → `outils.sudagrometeo.fr`.
+- **Sans déplacer le DNS** : créer un projet Cloudflare *Pages* relié au même dépôt, lui
+  ajouter le domaine personnalisé `outils.sudagrometeo.fr`, puis créer chez le gestionnaire
+  DNS actuel un enregistrement CNAME `outils` → `<projet>.pages.dev`.
+
+Une fois le domaine actif : le mettre en *Site URL* et dans les *Redirect URLs* de Supabase.

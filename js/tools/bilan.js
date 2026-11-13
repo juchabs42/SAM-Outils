@@ -86,7 +86,7 @@ const TEMPLATE = `    <div class="tool-main" id="appArea">
           <section class="card export-card">
             <div>
               <h2>Exporter les données</h2>
-              <p class="muted small">L'export contient date, ET₀, Kc, ETc, pluie Open‑Meteo, pluie corrigée, pluie efficace, irrigation, stock et drainage, depuis le 1er janvier jusqu'à la fin de la période choisie.</p>
+              <p class="muted small">L'export contient date, ET₀, Kc, ETc, pluie Open‑Meteo, pluie corrigée, pluie efficace, irrigation, stock et drainage, jour par jour sur la période affichée.</p>
             </div>
             <div class="actions">
               <button id="exportCsvBtn" class="sam-csv-button" type="button" title="Télécharger les données du bilan (CSV)">CSV</button>
@@ -371,22 +371,30 @@ function getCurrentSeasonYear(date = localToday()) {
 function seasonStartISO(year) { return `${year}-04-01`; }
 function seasonEndISO(year) { return `${year}-10-31`; }
 
-// Plage de calcul du bilan : en continu depuis le 1er janvier de l'année du début de la
-// période choisie, jusqu'à la fin de cette période (au plus aujourd'hui + 7 jours de prévision).
-// Hors saison (novembre → mars) les arbres sont au repos (Kc = 0) : le sol se recharge avec
-// la pluie ; il est donc plein au 1er avril comme avant, et la saison est inchangée.
+// Plage de calcul du bilan : toute l'année, en continu, depuis le 1er octobre de l'année
+// précédant le début de la période choisie (sol supposé plein à cette date ; les pluies
+// d'automne et d'hiver font ensuite le stock réel), jusqu'à la fin de la période choisie
+// (au plus aujourd'hui + 7 jours de prévision).
 function balanceRange() {
   const p = ctx.period.get();
   const today = localToday();
   const maxEnd = toISO(addDays(today, 7));
-  const start = `${(p?.start ? parseISO(p.start) : today).getFullYear()}-01-01`;
+  const start = `${(p?.start ? parseISO(p.start) : today).getFullYear() - 1}-10-01`;
   let end = p?.end || maxEnd;
   if (end > maxEnd) end = maxEnd;
   if (end < start) end = start;
   return { start, end, key: `${start}|${end}` };
 }
 
-function rangeYearsLabel(range = balanceRange()) {
+// Irrigations listées : du 1er janvier de l'année du début de la période à sa fin.
+function irrigationRange() {
+  const { end } = balanceRange();
+  const p = ctx.period.get();
+  const start = `${(p?.start ? parseISO(p.start) : localToday()).getFullYear()}-01-01`;
+  return { start, end: end < start ? start : end };
+}
+
+function rangeYearsLabel(range = irrigationRange()) {
   const a = range.start.slice(0, 4);
   const b = range.end.slice(0, 4);
   return a === b ? a : `${a}–${b}`;
@@ -422,7 +430,9 @@ function kcForDate(iso, parcel) {
   const end = custom ? Number(parcel.kc_end) : automatic.end;
   const harvest = parseISO(getHarvestDateForYear(parcel, y));
 
-  if (d < md(4, 1) || d > md(10, 31)) return 0;
+  // Toute l'année : le stock d'eau du sol évolue aussi pendant le repos végétatif
+  // (évaporation du sol, enherbement). Janvier → avril : Kc d'avril ; après la récolte
+  // et jusqu'au 31 décembre : Kc « après récolte ».
   if (d <= md(4, 30)) return april;
   if (d <= md(5, 31)) {
     const t = (d - md(5, 1)) / (md(5, 31) - md(5, 1));
@@ -451,7 +461,7 @@ function updateKcCalendarText() {
   const j = Number($('kcMid')?.value);
   const p = Number($('kcPeak')?.value);
   const e = Number($('kcEnd')?.value);
-  el.textContent = `Avril : ${num(a,2)} · Mai : transition ${num(a,2)} → ${num(j,2)} · Juin : ${num(j,2)} · Juillet à récolte : ${num(p,2)} · Après récolte : ${num(e,2)}.`;
+  el.textContent = `Janvier à avril : ${num(a,2)} · Mai : transition ${num(a,2)} → ${num(j,2)} · Juin : ${num(j,2)} · Juillet à récolte : ${num(p,2)} · Après récolte, jusqu'en décembre : ${num(e,2)}.`;
 }
 
 function bindEvents() {
@@ -835,7 +845,7 @@ async function saveIrrigation() {
 }
 
 function irrigationRowsForSelectedSeason() {
-  const { start, end } = balanceRange();
+  const { start, end } = irrigationRange();
   return state.irrigations.filter(i => i.irrigation_date >= start && i.irrigation_date <= end);
 }
 
@@ -1203,7 +1213,7 @@ function renderDashboard() {
 
   const shown = getDisplayedBalance();
   $('summaryDrainage').textContent = `${num(shown.reduce((s,r) => s + r.drainage, 0),1)} mm`;
-  $('chartSubtitle').textContent = `${p.name} · ${p.location_name} · Bilan calculé depuis le ${fmtDate(balanceRange().start)} · RU ${num(ru,1)} mm · RFU ${num(rfu,1)} mm`;
+  $('chartSubtitle').textContent = `${p.name} · ${p.location_name} · Bilan calculé en continu depuis le ${fmtDate(balanceRange().start)} · RU ${num(ru,1)} mm · RFU ${num(rfu,1)} mm`;
   renderAdvice(current);
   renderChart(shown);
 }
@@ -1212,8 +1222,9 @@ function renderAdvice(current) {
   const card = $('adviceCard');
   const p = state.activeParcel;
   const rfu = Number(p.rfu_mm);
-  // Hors saison (novembre → mars) : arbres au repos, pas de conseil d'irrigation.
-  if (current.stock > rfu || !(current.kc > 0)) {
+  // Le conseil d'irrigation ne concerne que la saison d'irrigation (avril → octobre).
+  const md = String(current.date).slice(5);
+  if (current.stock > rfu || md < '04-01' || md > '10-31') {
     card.classList.add('hidden');
     return;
   }
@@ -1403,7 +1414,7 @@ async function deleteRainCorrection() {
 }
 
 function exportRows() {
-  return state.balance.map(r => ({
+  return getDisplayedBalance().map(r => ({
     Date:r.date,
     Type:r.forecast ? 'Prévision' : 'Historique',
     'ET0 (mm)':round(r.et0,2),
@@ -1435,6 +1446,7 @@ function downloadBlob(blob, filename) {
 function exportCsv() {
   if (!state.activeParcel || !state.balance.length) return;
   const rows = exportRows();
+  if (!rows.length) { toast('Aucune donnée sur la période affichée.'); return; }
   const headers = Object.keys(rows[0]);
   const escapeCell = value => {
     if (typeof value === 'number') return String(value).replace('.', ',');
@@ -1442,7 +1454,7 @@ function exportCsv() {
     return `"${s}"`;
   };
   const csv = [headers.map(escapeCell).join(';'), ...rows.map(row => headers.map(h => escapeCell(row[h])).join(';'))].join('\n');
-  downloadBlob(new Blob(['\ufeff' + csv], { type:'text/csv;charset=utf-8' }), `SAM_Bilan_${safeFilename(state.activeParcel.name)}_${rangeYearsLabel()}.csv`);
+  downloadBlob(new Blob(['\ufeff' + csv], { type:'text/csv;charset=utf-8' }), `SAM_Bilan_${safeFilename(state.activeParcel.name)}_${rows[0].Date}_${rows[rows.length - 1].Date}.csv`);
 }
 
 
@@ -1641,7 +1653,7 @@ function exportCsv() {
     defaultPreset: 'w30',
     min: '2000-01-01',
     max: () => toISO(addDays(localToday(), 7)),
-    hint: 'Le bilan est calculé en continu depuis le 1er janvier. De novembre à mars, les arbres sont au repos : la consommation est nulle et le sol se recharge avec la pluie.'
+    hint: 'Le bilan du sol est calculé toute l’année, en continu depuis le 1er octobre de l’année précédente (sol supposé plein à cette date).'
   });
 
   ctx.period.onChange(async () => {
