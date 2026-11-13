@@ -9,7 +9,7 @@ import { profile } from './profile.js';
 import { stationStore, stationState } from './stations.js';
 import { storage, debounce, escapeHtml, formatDateShort, loadScript, loadCss, VENDOR, isISODate, todayISO } from './util.js';
 
-const APP_VERSION = '2026-11-13.1';
+const APP_VERSION = '2026-11-13.2';
 
 export const TOOLS = [
   { id: 'indicateurs', title: 'SAM Indicateurs agroclimatiques', card: 'Indicateurs <br>agro&shy;clima&shy;tiques', icon: 'toolIndicateurs' },
@@ -26,6 +26,7 @@ const HIDDEN_TOOLS = [
 const SECTIONS = [
   { id: 'donnees', title: 'Données des stations SAM', section: true, sidebar: 'stations' },
   { id: 'carte', title: 'Cartographie des stations SAM', section: true },
+  { id: 'admin', title: 'Administration SAM', section: true, adminOnly: true },
   { id: 'profil', title: 'Mon profil', section: true }
 ];
 const DEFAULT_TOOL = 'indicateurs';
@@ -255,6 +256,9 @@ function renderAuth() {
   const name = [p?.prenom, p?.nom].filter(Boolean).join(' ').trim();
   $('sam-perso-email').textContent = auth.user?.email || 'Mon profil';
   $('sam-perso').title = `${name ? `${name} · ` : ''}${auth.isAdmin ? 'compte administrateur' : 'compte en lecture seule'} — Mon profil`;
+  // Onglet « Administration » : visible des seuls administrateurs.
+  $('sam-nav-admin').hidden = !auth.isAdmin;
+  $('sam-app').classList.toggle('is-admin', Boolean(auth.isAdmin));
   updateToolModePill();
 }
 
@@ -610,6 +614,7 @@ async function mountTool(tool) {
 function updateTopNav(tool) {
   const inData = tool?.id === 'donnees';
   const inMap = tool?.id === 'carte';
+  const inAdmin = tool?.id === 'admin';
   const inTools = !tool?.section;
   const outils = $('sam-nav-outils');
   const donnees = $('sam-nav-donnees');
@@ -618,8 +623,10 @@ function updateTopNav(tool) {
   outils.classList.toggle('is-active', inTools);
   donnees.classList.toggle('is-active', inData);
   carte.classList.toggle('is-active', inMap);
+  const admin = $('sam-nav-admin');
+  admin.classList.toggle('is-active', inAdmin);
   $('sam-perso').classList.toggle('is-active', tool?.id === 'profil');
-  [[outils, inTools], [donnees, inData], [carte, inMap]].forEach(([link, on]) => {
+  [[outils, inTools], [donnees, inData], [carte, inMap], [admin, inAdmin]].forEach(([link, on]) => {
     if (on) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
   });

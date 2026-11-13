@@ -86,10 +86,10 @@ const TEMPLATE = `    <div class="tool-main" id="appArea">
           <section class="card export-card">
             <div>
               <h2>Exporter les données</h2>
-              <p class="muted small">L'export contient date, ET₀, Kc, ETc, pluie Open‑Meteo, pluie corrigée, pluie efficace, irrigation, stock et drainage, sur toute la saison.</p>
+              <p class="muted small">L'export contient date, ET₀, Kc, ETc, pluie Open‑Meteo, pluie corrigée, pluie efficace, irrigation, stock et drainage, depuis le 1er janvier jusqu'à la fin de la période choisie.</p>
             </div>
             <div class="actions">
-              <button id="exportCsvBtn" class="sam-csv-button" type="button" title="Télécharger les données de la saison (CSV)">CSV</button>
+              <button id="exportCsvBtn" class="sam-csv-button" type="button" title="Télécharger les données du bilan (CSV)">CSV</button>
             </div>
           </section>
         </div>
@@ -126,7 +126,7 @@ const TEMPLATE = `    <div class="tool-main" id="appArea">
             <div class="row-between wrap gap">
               <div>
                 <h2>Importer des irrigations</h2>
-                <p class="muted small">Fichier Excel (.xlsx ou .xls) avec deux colonnes : <strong>Date</strong> et <strong>Apport</strong> (mm). L'import est associé à la saison de la période choisie.</p>
+                <p class="muted small">Fichier Excel (.xlsx ou .xls) avec deux colonnes : <strong>Date</strong> et <strong>Apport</strong> (mm). Les dates peuvent être à n'importe quel moment de l'année.</p>
               </div>
             </div>
             <label class="file-label">Fichier Excel<input id="irrigationImportFile" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" /></label>
@@ -371,9 +371,25 @@ function getCurrentSeasonYear(date = localToday()) {
 function seasonStartISO(year) { return `${year}-04-01`; }
 function seasonEndISO(year) { return `${year}-10-31`; }
 
-function getSelectedSeasonYear() {
-  const end = ctx.period.get()?.end;
-  return end ? getCurrentSeasonYear(parseISO(end)) : getCurrentSeasonYear();
+// Plage de calcul du bilan : en continu depuis le 1er janvier de l'année du début de la
+// période choisie, jusqu'à la fin de cette période (au plus aujourd'hui + 7 jours de prévision).
+// Hors saison (novembre → mars) les arbres sont au repos (Kc = 0) : le sol se recharge avec
+// la pluie ; il est donc plein au 1er avril comme avant, et la saison est inchangée.
+function balanceRange() {
+  const p = ctx.period.get();
+  const today = localToday();
+  const maxEnd = toISO(addDays(today, 7));
+  const start = `${(p?.start ? parseISO(p.start) : today).getFullYear()}-01-01`;
+  let end = p?.end || maxEnd;
+  if (end > maxEnd) end = maxEnd;
+  if (end < start) end = start;
+  return { start, end, key: `${start}|${end}` };
+}
+
+function rangeYearsLabel(range = balanceRange()) {
+  const a = range.start.slice(0, 4);
+  const b = range.end.slice(0, 4);
+  return a === b ? a : `${a}–${b}`;
 }
 
 function findSoilClass(clay, silt) {
@@ -819,9 +835,7 @@ async function saveIrrigation() {
 }
 
 function irrigationRowsForSelectedSeason() {
-  const year = getSelectedSeasonYear();
-  const start = seasonStartISO(year);
-  const end = seasonEndISO(year);
+  const { start, end } = balanceRange();
   return state.irrigations.filter(i => i.irrigation_date >= start && i.irrigation_date <= end);
 }
 
@@ -831,12 +845,12 @@ function renderIrrigationList() {
   const rows = [...irrigationRowsForSelectedSeason()].sort((a, b) => String(b.irrigation_date).localeCompare(String(a.irrigation_date)));
   const more = $('irrigationMoreBtn');
   if (!rows.length) {
-    list.innerHTML = `<div class="muted small">Aucune irrigation enregistrée pour la saison ${getSelectedSeasonYear()}.</div>`;
+    list.innerHTML = `<div class="muted small">Aucune irrigation enregistrée en ${rangeYearsLabel()}.</div>`;
     more?.classList.add('hidden');
     updateBulkIrrigationUI();
     return;
   }
-  // Les 10 dernières irrigations ; « Voir plus » affiche toute la saison.
+  // Les 10 dernières irrigations ; « Voir plus » affiche toute la période calculée.
   const LIMIT = 10;
   const shown = state.showAllIrrigations ? rows : rows.slice(0, LIMIT);
   if (more) {
@@ -970,9 +984,6 @@ async function readIrrigationImportFile(event) {
     const amountKey = headers.find(h => ['apport','apportmm','irrigation','irrigationmm','quantite','quantitemm','mm'].includes(normalize(h)));
     if (!dateKey || !amountKey) throw new Error('Le fichier doit contenir une colonne « Date » et une colonne « Apport ».');
 
-    const year = getSelectedSeasonYear();
-    const start = seasonStartISO(year);
-    const end = seasonEndISO(year);
     const valid = [];
     const errors = [];
     raw.forEach((row, idx) => {
@@ -981,7 +992,6 @@ async function readIrrigationImportFile(event) {
       if (!date && (row[dateKey] === null || row[amountKey] === null)) return;
       if (!date) return errors.push(`Ligne ${idx + 2} : date illisible.`);
       if (!(amount >= 0)) return errors.push(`Ligne ${idx + 2} : apport invalide.`);
-      if (date < start || date > end) return errors.push(`Ligne ${idx + 2} : ${fmtDate(date)} hors saison ${year}.`);
       valid.push({ irrigation_date: date, amount_mm: amount });
     });
     if (!valid.length) throw new Error(errors[0] || 'Aucune irrigation valide à importer.');
@@ -1026,37 +1036,27 @@ async function fetchJson(url) {
   return json;
 }
 
-async function fetchWeather(parcel, year) {
-  const currentYear = getCurrentSeasonYear();
-  const startIso = seasonStartISO(year);
-  const endIso = seasonEndISO(year);
+async function fetchWeather(parcel, range) {
+  const { start: startIso, end: endIso } = range;
   const today = localToday();
   const todayIso = toISO(today);
   const commonDaily = 'precipitation_sum,et0_fao_evapotranspiration';
   const weatherMap = new Map();
-
-  if (year < currentYear) {
-    const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${parcel.latitude}&longitude=${parcel.longitude}&start_date=${startIso}&end_date=${endIso}&daily=${commonDaily}&timezone=auto`;
-    const archive = await fetchJson(url);
-    ingestDailyWeather(weatherMap, archive.daily, '9999-12-31');
-    return [...weatherMap.values()].sort((a,b) => a.date.localeCompare(b.date));
-  }
-
-  const effectiveEnd = todayIso < endIso ? toISO(addDays(today, 7)) : endIso;
-  const archiveEnd = addDays(today, -8);
-  const archiveEndIso = toISO(archiveEnd);
-  if (startIso <= archiveEndIso) {
-    const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${parcel.latitude}&longitude=${parcel.longitude}&start_date=${startIso}&end_date=${archiveEndIso}&daily=${commonDaily}&timezone=auto`;
+  // Archives jusqu'à J-8, puis l'API de prévision (7 jours passés + 7 à venir).
+  const archiveEndIso = toISO(addDays(today, -8));
+  const archiveTo = endIso < archiveEndIso ? endIso : archiveEndIso;
+  if (startIso <= archiveTo) {
+    const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${parcel.latitude}&longitude=${parcel.longitude}&start_date=${startIso}&end_date=${archiveTo}&daily=${commonDaily}&timezone=auto`;
     const archive = await fetchJson(url);
     ingestDailyWeather(weatherMap, archive.daily, todayIso);
   }
-
-  const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${parcel.latitude}&longitude=${parcel.longitude}&daily=${commonDaily}&timezone=auto&past_days=7&forecast_days=8`;
-  const forecast = await fetchJson(forecastUrl);
-  ingestDailyWeather(weatherMap, forecast.daily, todayIso);
-
+  if (endIso > archiveEndIso) {
+    const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${parcel.latitude}&longitude=${parcel.longitude}&daily=${commonDaily}&timezone=auto&past_days=7&forecast_days=8`;
+    const forecast = await fetchJson(forecastUrl);
+    ingestDailyWeather(weatherMap, forecast.daily, todayIso);
+  }
   return [...weatherMap.values()]
-    .filter(r => r.date >= startIso && r.date <= effectiveEnd)
+    .filter(r => r.date >= startIso && r.date <= endIso)
     .sort((a,b) => a.date.localeCompare(b.date));
 }
 
@@ -1152,11 +1152,11 @@ async function refreshBalance(force = false) {
   if (!state.activeParcel) return;
   $('refreshBtn').disabled = true;
   $('refreshBtn').textContent = 'Actualisation…';
-  const year = getSelectedSeasonYear();
+  const range = balanceRange();
   try {
-    if (force || !state.weather.length || state.weatherYear !== year) {
-      state.weather = await fetchWeather(state.activeParcel, year);
-      state.weatherYear = year;
+    if (force || !state.weather.length || state.weatherKey !== range.key) {
+      state.weather = await fetchWeather(state.activeParcel, range);
+      state.weatherKey = range.key;
     }
     if (ctx.scope.disposed) return;
     state.balance = computeBalance(state.weather, state.activeParcel);
@@ -1172,9 +1172,6 @@ async function refreshBalance(force = false) {
 }
 
 function currentBalanceRow() {
-  const year = getSelectedSeasonYear();
-  const currentYear = getCurrentSeasonYear();
-  if (year < currentYear) return [...state.balance].reverse().find(r => r.date <= seasonEndISO(year)) || null;
   const today = toISO(localToday());
   return state.balance.find(r => r.date === today) || [...state.balance].reverse().find(r => r.date <= today) || null;
 }
@@ -1206,7 +1203,7 @@ function renderDashboard() {
 
   const shown = getDisplayedBalance();
   $('summaryDrainage').textContent = `${num(shown.reduce((s,r) => s + r.drainage, 0),1)} mm`;
-  $('chartSubtitle').textContent = `${p.name} · ${p.location_name} · Saison ${getSelectedSeasonYear()} · RU ${num(ru,1)} mm · RFU ${num(rfu,1)} mm`;
+  $('chartSubtitle').textContent = `${p.name} · ${p.location_name} · Bilan calculé depuis le ${fmtDate(balanceRange().start)} · RU ${num(ru,1)} mm · RFU ${num(rfu,1)} mm`;
   renderAdvice(current);
   renderChart(shown);
 }
@@ -1215,7 +1212,8 @@ function renderAdvice(current) {
   const card = $('adviceCard');
   const p = state.activeParcel;
   const rfu = Number(p.rfu_mm);
-  if (current.stock > rfu) {
+  // Hors saison (novembre → mars) : arbres au repos, pas de conseil d'irrigation.
+  if (current.stock > rfu || !(current.kc > 0)) {
     card.classList.add('hidden');
     return;
   }
@@ -1444,7 +1442,7 @@ function exportCsv() {
     return `"${s}"`;
   };
   const csv = [headers.map(escapeCell).join(';'), ...rows.map(row => headers.map(h => escapeCell(row[h])).join(';'))].join('\n');
-  downloadBlob(new Blob(['\ufeff' + csv], { type:'text/csv;charset=utf-8' }), `SAM_Bilan_${safeFilename(state.activeParcel.name)}_${getSelectedSeasonYear()}.csv`);
+  downloadBlob(new Blob(['\ufeff' + csv], { type:'text/csv;charset=utf-8' }), `SAM_Bilan_${safeFilename(state.activeParcel.name)}_${rangeYearsLabel()}.csv`);
 }
 
 
@@ -1637,12 +1635,13 @@ function exportCsv() {
       { id: 'w14', label: '14 jours (dont 7 de prévision)', resolve: today => ({ start: toISO(addDays(parseISO(today), -6)), end: toISO(addDays(parseISO(today), 7)) }) },
       { id: 'w60', label: '60 jours (dont 7 de prévision)', resolve: today => ({ start: toISO(addDays(parseISO(today), -52)), end: toISO(addDays(parseISO(today), 7)) }) },
       { id: 'season', label: 'Saison en cours (avril → octobre)', resolve: today => { const y = getCurrentSeasonYear(parseISO(today)); return { start: seasonStartISO(y), end: seasonEndISO(y) }; } },
-      { id: 'seasonPrev', label: 'Saison précédente', resolve: today => { const y = getCurrentSeasonYear(parseISO(today)) - 1; return { start: seasonStartISO(y), end: seasonEndISO(y) }; } }
+      { id: 'seasonPrev', label: 'Saison précédente', resolve: today => { const y = getCurrentSeasonYear(parseISO(today)) - 1; return { start: seasonStartISO(y), end: seasonEndISO(y) }; } },
+      { id: 'year', label: 'Depuis le 1er janvier', resolve: today => ({ start: `${parseISO(today).getFullYear()}-01-01`, end: toISO(addDays(parseISO(today), 7)) }) }
     ],
     defaultPreset: 'w30',
-    min: '2000-04-01',
+    min: '2000-01-01',
     max: () => toISO(addDays(localToday(), 7)),
-    hint: 'Le bilan est calculé sur toute la saison (du 1er avril au 31 octobre) ; la période choisit la saison et la fenêtre affichée.'
+    hint: 'Le bilan est calculé en continu depuis le 1er janvier. De novembre à mars, les arbres sont au repos : la consommation est nulle et le sol se recharge avec la pluie.'
   });
 
   ctx.period.onChange(async () => {
@@ -1650,7 +1649,7 @@ function exportCsv() {
     state.showAllIrrigations = false;
     renderIrrigationList();
     if (!state.activeParcel) return;
-    if (state.weatherYear !== getSelectedSeasonYear()) await refreshBalance(true);
+    if (state.weatherKey !== balanceRange().key) await refreshBalance(true);
     else renderDashboard();
   });
 

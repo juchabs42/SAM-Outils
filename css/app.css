@@ -777,9 +777,20 @@ body.is-gated { background: var(--sam-red-900); }
   .sam-tools { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 }
 
+/* Onglet « Administration » (administrateurs) : engrenage + libellé, engrenage seul si la place manque */
+.sam-topnav-link.sam-nav-admin { display: inline-flex; align-items: center; gap: 7px; }
+.sam-topnav-link.sam-nav-admin[hidden] { display: none !important; }
+.sam-nav-admin .sam-nav-icon { display: inline-flex; }
+.sam-nav-admin .sam-nav-icon svg { width: 19px; height: 19px; }
+
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
 /* Barre du haut : l'adresse mail laisse la place aux trois onglets (elle reste en info-bulle). */
 @media (max-width: 1240px) {
   .sam-perso .sam-top-label { display: none; }
+}
+@media (max-width: 1320px) {
+  .sam-nav-admin .sam-nav-label { display: none; }
 }
 
 @media (min-width: 761px) and (max-width: 900px) {
@@ -853,6 +864,11 @@ body.is-gated { background: var(--sam-red-900); }
 }
 
 /* Trois onglets + profil + déconnexion sur un téléphone : on resserre. */
+/* Administrateurs sur téléphone : 4 onglets ; la déconnexion reste dans « Mon profil ». */
+@media (max-width: 520px) {
+  .sam-app.is-admin #sam-logout { display: none; }
+}
+
 @media (max-width: 430px) {
   .sam-topnav { gap: 0; }
   .sam-topnav-link { padding: 0 8px; }

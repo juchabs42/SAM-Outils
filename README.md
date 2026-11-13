@@ -13,6 +13,7 @@ Application unique qui regroupe les six outils SAM et les données des stations 
 | Suivi phénologique | Supabase + Open-Meteo | lecture, saisie administrateur |
 | Tavelure | Supabase | lecture, saisie administrateur |
 | Piégeage | Supabase | lecture, saisie administrateur |
+| Administration (comptes, stations, capteurs) | Supabase + fonction `sam-admin` | administrateurs uniquement |
 
 Site statique (HTML, CSS, JavaScript sans compilation), publié avec GitHub Pages.
 
@@ -29,6 +30,16 @@ Site statique (HTML, CSS, JavaScript sans compilation), publié avec GitHub Page
 5. Administrateurs (saisie) : ajouter l'adresse dans la table `sam_admins`
    (`insert into public.sam_admins (email) values ('prenom.nom@sudexpe.net');`).
 
+6. **Onglet Administration → Comptes** (inviter, donner les droits admin, suspendre,
+   supprimer depuis le site) : déployer une fois la fonction `supabase/functions/sam-admin/index.ts`
+   — *Edge Functions → Deploy a new function → Via Editor*, nom `sam-admin`, coller le fichier,
+   *Deploy*, puis désactiver *Verify JWT* dans ses réglages (la fonction vérifie elle-même
+   que l'appelant est dans `sam_admins`). La clé d'administration lui est fournie par Supabase.
+7. **Mails (invitations, mot de passe oublié)** : le service d'envoi par défaut de Supabase
+   n'écrit qu'aux membres de l'équipe du projet, avec un très petit nombre de mails par heure.
+   Pour inviter des producteurs : *Authentication → Emails → SMTP Settings* avec un vrai
+   serveur d'envoi (compte mail du domaine, Brevo…).
+
 La clé utilisée dans `config.js` est la clé *publishable* : elle est faite pour être publique.
 Ne jamais y mettre la clé *secret* / *service_role*.
 
@@ -42,6 +53,8 @@ css/tools/*.css       styles de chaque outil (limités à leur conteneur)
 js/core/*.js          connexion, profil, stations, lieux, période, navigation
 js/tools/*.js         un module par outil
 supabase/*.sql        tables, droits et règles d'accès, collecte des stations, imports
+supabase/functions/   fonction « sam-admin » (gestion des comptes depuis l'onglet Administration)
+_headers              en-têtes de sécurité (hébergement Cloudflare)
 service-worker.js     fonctionnement hors connexion
 ```
 
